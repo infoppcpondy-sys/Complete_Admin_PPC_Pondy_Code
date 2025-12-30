@@ -1,0 +1,306 @@
+
+  
+  .addForm input[type="file"] {
+    padding: 0;
+    margin-top: 5px;
+    margin-bottom: 10px;
+  }
+  
+  
+  /* Photo Upload Container */
+  .addForm
+  .photo-upload-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    margin-bottom: 12px;
+    box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;}
+  
+  /* Custom File Input */
+  .addForm
+  .photo-upload-input {
+    display: none;
+  }
+  
+  .addForm
+  .photo-upload-label {
+    display: inline-block;
+    background-color: white;
+    padding: 12px 20px;
+    border-radius: 5px;
+    width: 100%;
+    height: 80px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    /* border: 1px solid ; */
+    box-shadow: 1px 1px 2px gainsboro ;
+    padding-top: 25px;
+  }
+  
+  
+  
+  /* Uploaded Photos Section */
+  .addForm
+  .uploaded-photos {
+    margin-top: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .addForm
+  .uploaded-photos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  
+  .addForm
+  .uploaded-photo-item {
+    position: relative;
+    text-align: center;
+  }
+  
+  .addForm
+  .uploaded-photo {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: all 0.3s ease-in-out;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .addForm
+  .uploaded-photo:hover {
+    transform: scale(1.05);
+  }
+  
+  /* Default Photo Indicator Styles */
+  .addForm
+  .uploaded-photo-item.default-photo .uploaded-photo {
+    border: 2px solid transparent;
+    background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
+    box-shadow: 
+      0 0 0 3px rgba(34, 197, 94, 0.2),
+      0 0 20px 4px rgba(34, 197, 94, 0.4),
+      0 4px 12px rgba(34, 197, 94, 0.3),
+      inset 0 0 8px rgba(34, 197, 94, 0.1);
+    animation: defaultPhotoGlow 2s ease-in-out infinite;
+  }
+  
+  .addForm
+  .uploaded-photo-item.default-photo .uploaded-photo {
+    border-color: #22c55e;
+  }
+  
+  /* Glow animation */
+  @keyframes defaultPhotoGlow {
+    0% {
+      box-shadow: 
+        0 0 0 3px rgba(34, 197, 94, 0.2),
+        0 0 15px 2px rgba(34, 197, 94, 0.3),
+        0 4px 12px rgba(34, 197, 94, 0.3),
+        inset 0 0 8px rgba(34, 197, 94, 0.1);
+    }
+    50% {
+      box-shadow: 
+        0 0 0 3px rgba(34, 197, 94, 0.25),
+        0 0 25px 6px rgba(34, 197, 94, 0.5),
+        0 4px 12px rgba(34, 197, 94, 0.35),
+        inset 0 0 8px rgba(34, 197, 94, 0.15);
+    }
+    100% {
+      box-shadow: 
+        0 0 0 3px rgba(34, 197, 94, 0.2),
+        0 0 15px 2px rgba(34, 197, 94, 0.3),
+        0 4px 12px rgba(34, 197, 94, 0.3),
+        inset 0 0 8px rgba(34, 197, 94, 0.1);
+    }
+  }
+  
+  /* Badge Container for Checkmark */
+  .addForm
+  .default-photo-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    animation: badgeScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    border: 2px solid white;
+  }
+  
+  /* Badge scale-in animation */
+  @keyframes badgeScaleIn {
+    0% {
+      transform: scale(0) rotate(-180deg);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+  
+  /* Fade and scale animation for photo becoming default */
+  @keyframes photoBecomesDefault {
+    0% {
+      opacity: 0.6;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .addForm
+  .uploaded-photo-item.default-photo .uploaded-photo {
+    animation: 
+      defaultPhotoGlow 2s ease-in-out infinite,
+      photoBecomesDefault 0.4s ease-in-out;
+  }
+  
+  /* Non-default photo styling */
+  .addForm
+  .uploaded-photo-item:not(.default-photo) .uploaded-photo {
+    border: 2px solid #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .addForm
+  .uploaded-photo-item:not(.default-photo) .uploaded-photo:hover {
+    border-color: #9ca3af;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Tooltip styling for accessibility */
+  .addForm
+  .photo-label-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  
+  .addForm
+  .default-photo .photo-label-text {
+    color: #22c55e;
+    font-weight: 600;
+  }
+  
+  /* Radio input hidden but functional for accessibility */
+  .addForm
+  .uploaded-photo-item input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  /* Remove Photo Button */
+  .addForm
+  .remove-photo-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background-color: rgba(255, 0, 0, 0.6);
+    color: white;
+    border: none;
+    padding: 4px 9px;
+    border-radius: 10%;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .addForm
+  .remove-photo-btn:hover {
+    background-color: rgba(255, 0, 0, 1);
+  }
+  
+  /* Container for the video upload section */
+  .addForm
+  .form-group {
+  margin-bottom: 12px;
+  }
+  
+  /* Style for the label */
+  .addForm
+  .form-group label {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px 0; /* top 0, bottom 6px */
+  display: block;
+  color: #333;
+  }
+
+  /* Ensure controls don't add extra variable spacing - rely on .form-group spacing */
+  .addForm
+  .form-control,
+  .addForm select,
+  .addForm input,
+  .addForm textarea,
+  .addForm .dropdown-popup,
+  .addForm .photo-upload-label,
+  .addForm .file-upload-label {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  /* Smaller helper text spacing under controls */
+  .addForm .photo-label-text,
+  .addForm .help-text {
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+  
+  /* Style for file input */
+  .addForm
+  input[type="file"] {
+  display: none; /* Hide the default file input */
+  }
+  
+  .addForm
+  .file-upload-label {
+  display: inline-block;
+  background-color: white;
+  padding: 20px 30px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+  }
+  
+ 
+  
+  /* Style for the selected video container */
+  .addForm
+  .selected-video-container {
+  margin-top: 12px;
+  text-align: center;
+  }
+  
+  /* Video element styling */
+  .addForm
+  video {
+  border-radius: 10px;
+  max-width: 100%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  
+  
