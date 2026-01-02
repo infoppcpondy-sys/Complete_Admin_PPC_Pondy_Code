@@ -162,6 +162,37 @@ const handleReset = () => {
     }
   };
 
+    const handlePermanentDelete = async (ppcId) => {
+      const confirmed = window.confirm("This will permanently delete the property. This action cannot be undone. Continue?");
+      if (!confirmed) return;
+
+      try {
+        // Attempt to call backend permanent delete endpoint
+        await axios.delete(`${process.env.REACT_APP_API_URL}/properties/permanent-delete`, {
+          params: { ppcId },
+        });
+
+        // remove from lists
+        setFiltered((prev) => prev.filter((prop) => prop.ppcId !== ppcId));
+        setProperties((prev) => prev.filter((prop) => prop.ppcId !== ppcId));
+
+        // clean up status tracking
+        setStatusProperties((prev) => {
+          const updated = { ...prev };
+          delete updated[ppcId];
+          return updated;
+        });
+        setPreviousStatuses((prev) => {
+          const updated = { ...prev };
+          delete updated[ppcId];
+          return updated;
+        });
+      } catch (err) {
+        console.error(err);
+        alert('Failed to permanently delete property.');
+      }
+    };
+
 
 
   
@@ -343,6 +374,7 @@ const handleReset = () => {
             <th>Remarks</th>
             <th>Deleted Date</th>
             <th>Undo</th>
+            <th>Permanent Delete</th>
              {/* <th>View Details</th> */}
 
           </tr>
@@ -350,7 +382,7 @@ const handleReset = () => {
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan="16" className="text-center">
+              <td colSpan="17" className="text-center">
                 No properties found.
               </td>
             </tr>
@@ -399,6 +431,15 @@ const handleReset = () => {
                     onClick={() => handleUndo(prop.ppcId)}
                   >
                     Undo
+                  </Button>
+                </td>
+                <td>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handlePermanentDelete(prop.ppcId)}
+                  >
+                    Permanent Delete
                   </Button>
                 </td>
             
