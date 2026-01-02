@@ -237,6 +237,36 @@ const menuItems = [
           <RiUserSettingsFill size={20} /> My Account
         </NavLink>
       </li>
+          <li className="p-0 mt-2" >
+                <NavLink 
+                  to="/dashboard/puc-car" 
+                  onClick={toggleSidebar}
+                  className={({ isActive }) => (isActive ? "active-link rounded" : "")}
+                >
+                  <FaFileInvoice />
+                  PUC Property
+                </NavLink>
+              </li>
+
+
+              <li className="p-0 mt-2">
+            <NavLink to="/dashboard/apply-on-demand" onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+              <FaPlusCircle />
+              Set As On Demand Property
+            </NavLink>
+          </li>
+
+
+           <li className="p-0 mt-2" >
+            <NavLink
+              to="/dashboard/set-ppcid"
+              onClick={toggleSidebar}
+              className={({ isActive }) => (isActive ? "active-link rounded" : "")}
+            >
+              <FaFileInvoice />
+              Set PPCID Property
+            </NavLink>
+          </li>
   </ul>
 
 
@@ -450,41 +480,7 @@ const menuItems = [
           PPC Property
       </li>
 <ul className="collapse " id="PPCMenu">
-
- <li className="p-0 mt-2" >
-        <NavLink
-          to="/dashboard/puc-car"
-          onClick={toggleSidebar}
-          className={({ isActive }) => (isActive ? "active-link rounded" : "")}
-        >
-          <FaFileInvoice />
-          PUC Property
-        </NavLink>
-      </li>
-
-
-      <li className="p-0 mt-2">
-    <NavLink
-        to="/dashboard/apply-on-demand"
-        className={({ isActive }) => (isActive ? "active-link rounded" : "")}
-      >
-        <FaPlusCircle />
-        Set As On Demand Property
-      </NavLink>
-    </li>
-
-
-       <li className="p-0 mt-2" >
-        <NavLink
-          to="/dashboard/set-ppcid"
-          onClick={toggleSidebar}
-          className={({ isActive }) => (isActive ? "active-link rounded" : "")}
-        >
-          <FaFileInvoice />
-          Set PPCID Property
-        </NavLink>
-      </li>
-
+ 
      <li className="p-0 mt-2" >
         <NavLink
           to="/dashboard/searchcar"

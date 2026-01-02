@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import moment from 'moment';
+import * as XLSX from 'xlsx';
 import { FaFlag, FaBan, FaTrash, FaUndo, FaCheck } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { Table, Modal, Button, Badge } from 'react-bootstrap';
@@ -11,6 +12,8 @@ const LoginReportTable = () => {
   const [actionType, setActionType] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [otpFilter, setOtpFilter] = useState('all');
+  const [remarksFilter, setRemarksFilter] = useState('all');
   const [phoneFilter, setPhoneFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -132,9 +135,60 @@ const LoginReportTable = () => {
     printWindow.document.close();
     printWindow.print();
   };
+  const handleExportExcel = () => {
+    try {
+      const rows = filteredUsers.map((item, index) => ({
+        '#': index + 1,
+        Phone: item.phone || '',
+        OTP: item.otp || '',
+        'Login Date': item.loginDate ? moment(item.loginDate).format('DD-MM-YYYY HH:mm') : '',
+        'OTP Status': item.otpStatus || '',
+        'Country Code': item.countryCode || '',
+        'Login Mode': item.loginMode || '',
+        Status: item.status || '',
+        'Active Status UpdatedBy': item.updatedBy ? `${item.updatedBy} (${item.updateDate ? moment(item.updateDate).format('DD-MM-YYYY') : ''})` : 'N/A',
+        Remarks: item.remarks || '',
+        'Banned Reason': item.bannedReason || '',
+        'Deleted Reason': item.deleteReason || '',
+        'Reported By': item.reportedBy ? `${item.reportedBy} (${item.reportDate ? moment(item.reportDate).format('DD-MM-YYYY') : ''})` : '',
+        'Banned By': item.bannedBy ? `${item.bannedBy} (${item.bannedDate ? moment(item.bannedDate).format('DD-MM-YYYY') : ''})` : '',
+        'Deleted By': item.deletedBy ? `${item.deletedBy} (${item.deletedDate ? moment(item.deletedDate).format('DD-MM-YYYY') : ''})` : '',
+        'Un Reported By': item.unReportedBy ? `${item.unReportedBy} (${item.unReportedDate ? moment(item.unReportedDate).format('DD-MM-YYYY') : ''})` : '',
+        'Un Banned By': item.unBannedBy ? `${item.unBannedBy} (${item.unBannedDate ? moment(item.unBannedDate).format('DD-MM-YYYY') : ''})` : '',
+        'Un Deleted By': item.unDeletedBy ? `${item.unDeletedBy} (${item.unDeletedDate ? moment(item.unDeletedDate).format('DD-MM-YYYY') : ''})` : '',
+        'Permanently Logged Out': item.permanentlyLoggedOut ? 'Yes' : 'No'
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Login Report');
+
+      const filtersApplied = (
+        statusFilter !== 'all' ||
+        otpFilter !== 'all' ||
+        remarksFilter !== 'all' ||
+        phoneFilter.trim() !== '' ||
+        startDate ||
+        endDate ||
+        (filteredUsers.length !== users.length)
+      );
+
+      const fileName = filtersApplied ? 'login-report-filtered.xlsx' : 'login-report.xlsx';
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      alert('Failed to export Excel.');
+    }
+  };
   const filteredUsers = users.filter(user => {
     const matchesStatus =
       statusFilter === 'all' || user.status === statusFilter;
+
+    const matchesOtp =
+      otpFilter === 'all' || (user.otpStatus || '').toLowerCase() === otpFilter.toLowerCase();
+
+    const matchesRemarks =
+      remarksFilter === 'all' || (user.remarks || '').toLowerCase() === remarksFilter.toLowerCase();
 
     const matchesPhone =
       phoneFilter.trim() === '' || user.phone?.includes(phoneFilter.trim());
@@ -150,7 +204,7 @@ const LoginReportTable = () => {
       (!start && end && loginMoment.isSameOrBefore(end)) ||
       (start && end && loginMoment.isBetween(start, end, null, '[]'));
 
-    return matchesStatus && matchesPhone && matchesDate;
+    return matchesStatus && matchesPhone && matchesDate && matchesOtp && matchesRemarks;
   });
 
   const reduxAdminName = useSelector((state) => state.admin.name);
@@ -269,14 +323,28 @@ const LoginReportTable = () => {
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">Login Report</h2>
       <div className="d-flex flex-row gap-2 align-items-center flex-nowrap">
-        <input
-          type="text"
-          placeholder="Search Phone"
-          value={phoneFilter}
-          onChange={e => setPhoneFilter(e.target.value)}
-          className="form-control"
-          style={{ maxWidth: '200px' }}
-        />
+        <div style={{display: 'flex', flexDirection: 'column'}}>
+          <input
+            type="text"
+            placeholder="Search Phone"
+            value={phoneFilter}
+            onChange={e => setPhoneFilter(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '200px' }}
+          />
+
+          <div style={{display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px', width: '200px'}}>
+            <div style={{flex: 1, background: 'linear-gradient(90deg,#3b82f6,#6366f1)', color: '#fff', padding: '6px 10px', borderRadius: 8, boxShadow: '0 2px 6px rgba(0,0,0,0.08)', fontSize: 13, textAlign: 'center'}}>
+              <div style={{fontWeight:700}}>Total Logins</div>
+              <div>{users.length}</div>
+            </div>
+
+            <div style={{flex: 1, background: 'linear-gradient(90deg,#10b981,#14b8a6)', color: '#fff', padding: '6px 10px', borderRadius: 8, boxShadow: '0 2px 6px rgba(0,0,0,0.08)', fontSize: 13, textAlign: 'center'}}>
+              <div style={{fontWeight:700}}>Showing</div>
+              <div>{filteredUsers.length}</div>
+            </div>
+          </div>
+        </div>
 
         <input 
           style={{width:"200px"}}
@@ -306,6 +374,24 @@ const LoginReportTable = () => {
             <option value="unDeleted">UnDeleted</option>
           </select>
         </div>
+        <div className="mb-4">
+          <label className="mr-2 font-medium">Filter by OTP Status:</label>
+          <select value={otpFilter} onChange={e => setOtpFilter(e.target.value)} className="border p-2 rounded">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="verified">Verified</option>
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="mr-2 font-medium">Filter by Remarks:</label>
+          <select value={remarksFilter} onChange={e => setRemarksFilter(e.target.value)} className="border p-2 rounded">
+            <option value="all">All</option>
+            <option value="seller">Seller</option>
+            <option value="buyer">Buyer</option>
+            <option value="visitor">Visitor</option>
+          </select>
+        </div>
         <button
           className="btn btn-secondary"
           onClick={() => {
@@ -313,12 +399,17 @@ const LoginReportTable = () => {
             setStartDate('');
             setEndDate('');
             setStatusFilter('all');
+            setOtpFilter('all');
+            setRemarksFilter('all');
           }}
         >
           Reset
         </button>
         <button className="btn btn-secondary mb-3" style={{background:"tomato"}} onClick={handlePrint}>
   Print
+</button>
+        <button className="btn btn-secondary mb-3" style={{background:"green", marginLeft: '8px'}} onClick={handleExportExcel}>
+  Excel
 </button>
 
       </div>
