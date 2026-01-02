@@ -173,7 +173,7 @@ const LoginReportTable = () => {
         (filteredUsers.length !== users.length)
       );
 
-      const fileName = filtersApplied ? 'login-report-filtered.xlsx' : 'login-report.xlsx';
+      const fileName = filtersApplied ? 'Filtered-Login-Report.xlsx' : 'Login-Report.xlsx';
       XLSX.writeFile(wb, fileName);
     } catch (err) {
       console.error('Export Excel error:', err);
