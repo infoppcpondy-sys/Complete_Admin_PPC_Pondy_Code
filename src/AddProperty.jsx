@@ -20,6 +20,8 @@ import { BiBuildingHouse , BiWorld} from "react-icons/bi";
 import { IoCloseCircle } from "react-icons/io5";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import { compressImage, compressVideo } from './utils/compressionUtils';
+import { ImageLoadingOverlay, VideoLoadingOverlay } from './utils/LoadingOverlay';
 import { toWords } from 'number-to-words';
 import { FcSearch } from "react-icons/fc";
 
@@ -28,6 +30,11 @@ function AddProperty() {
   const location = useLocation();
    const [ppcId, setPpcId] = useState(location.state?.ppcId || ""); 
     const [selectedFiles, setSelectedFiles] = useState([]); // Store selected files
+    const [processingPhotoIndices, setProcessingPhotoIndices] = useState([]);
+    const [processingVideoIndices, setProcessingVideoIndices] = useState([]);
+    const [isCompressing, setIsCompressing] = useState(false);
+    const [photoProgress, setPhotoProgress] = useState({});
+    const [videoProgress, setVideoProgress] = useState({});
 
       const inputRef = useRef(null);
           const latRef = useRef(null);
@@ -614,14 +621,14 @@ useEffect(() => {
 
   const handlePhotoUpload = async (e) => {
   const files = Array.from(e.target.files);
-  const maxSize = 50 * 1024 * 1024; // 10MB
+  const maxSize = 50 * 1024 * 1024; // 50MB
 
   if (!files.length) return;
 
   // Check size
   for (let file of files) {
     if (file.size > maxSize) {
-      alert("File size exceeds the 10MB limit");
+      alert("File size exceeds the 50MB limit");
       return;
     }
   }
@@ -632,64 +639,75 @@ useEffect(() => {
     return;
   }
 
-  setLoading(true);
-  await new Promise((resolve) => setTimeout(resolve, 1000)); // Optional delay
+  setIsCompressing(true);
 
-  const watermarkedImages = await Promise.all(
-    files.map((file) => {
-      return new Promise((resolve) => {
+  const startIndex = photos.length;
+  // Add temporary placeholders so UI shows slots for incoming images
+  const placeholders = files.map((f, i) => new File([new Blob()], `placeholder-${Date.now()}-${i}.png`, { type: 'image/png' }));
+  setPhotos(prev => [...prev, ...placeholders]);
+
+  // mark processing indices
+  const newProcessing = files.map((_, i) => startIndex + i);
+  setProcessingPhotoIndices((prev) => [...prev, ...newProcessing]);
+
+  // Process files sequentially (watermark then compress)
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    try {
+      const watermarked = await new Promise((resolve) => {
         const reader = new FileReader();
-
         reader.onload = (event) => {
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
-
             canvas.width = img.width;
             canvas.height = img.height;
-
             ctx.drawImage(img, 0, 0);
-
-            // Watermark settings
             const watermarkText = "PPC Pondy";
             const fontSize = Math.max(24, Math.floor(canvas.width / 15));
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-
-            // White outline
             ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
             ctx.lineWidth = 4;
             ctx.strokeText(watermarkText, centerX, centerY);
-
-            // Black fill
             ctx.fillStyle = "rgba(224, 223, 223, 0.9)";
             ctx.fillText(watermarkText, centerX, centerY);
-
             canvas.toBlob((blob) => {
-              const watermarkedFile = new File([blob], file.name, {
-                type: file.type,
-              });
+              const watermarkedFile = new File([blob], file.name, { type: file.type });
               resolve(watermarkedFile);
             }, file.type);
           };
-
           img.src = event.target.result;
         };
-
         reader.readAsDataURL(file);
       });
-    })
-  );
 
-  setPhotos([...photos, ...watermarkedImages]);
-  setSelectedFiles(watermarkedImages);
-  setSelectedPhotoIndex(0);
-  setLoading(false);
+      // compress to <=100KB
+      const compressed = await compressImage(watermarked, 100, (progress) => {
+        setPhotoProgress((prev) => ({ ...prev, [startIndex + i]: progress }));
+      });
+
+      // replace placeholder with compressed file
+      setPhotos((prev) => {
+        const next = [...prev];
+        next[startIndex + i] = compressed;
+        return next;
+      });
+
+    } catch (err) {
+      console.warn('Error processing image', err);
+    } finally {
+      setProcessingPhotoIndices((prev) => prev.filter((idx) => idx !== startIndex + i));
+    }
+  }
+
+  setSelectedFiles(files);
+  setSelectedPhotoIndex(startIndex);
+  setIsCompressing(false);
 };
   const removePhoto = (index) => {
     setPhotos(photos.filter((_, i) => i !== index));
@@ -701,20 +719,47 @@ useEffect(() => {
 
   const handleVideoChange = (e) => {
   const selectedFiles = Array.from(e.target.files);
-  const maxSize = 100 * 1024 * 1024; // 50MB
+  const maxSize = 100 * 1024 * 1024; // 100MB
   const validFiles = [];
 
   for (let file of selectedFiles) {
     if (file.size > maxSize) {
-      alert(`${file.name} exceeds the 50MB size limit.`);
+      alert(`${file.name} exceeds the 100MB size limit.`);
       continue;
     }
     validFiles.push(file);
   }
 
+  if (!validFiles.length) return;
+
   // Allow up to 5 videos
-  const totalFiles = [...videos, ...validFiles].slice(0, 5);
-  setVideos(totalFiles);
+  const startIndex = videos.length;
+  const placeholders = validFiles.map((f, i) => new File([new Blob()], `placeholder-video-${Date.now()}-${i}.mp4`, { type: 'video/mp4' }));
+  setVideos(prev => [...prev, ...placeholders].slice(0,5));
+
+  const newProcessing = validFiles.map((_, i) => startIndex + i);
+  setProcessingVideoIndices((prev) => [...prev, ...newProcessing]);
+
+  // process each video sequentially
+  (async () => {
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      try {
+        const compressed = await compressVideo(file, 200, (progress) => {
+          setVideoProgress((prev) => ({ ...prev, [startIndex + i]: progress }));
+        });
+        setVideos((prev) => {
+          const next = [...prev];
+          next[startIndex + i] = compressed;
+          return next.slice(0,5);
+        });
+      } catch (err) {
+        console.warn('Video compress error', err);
+      } finally {
+        setProcessingVideoIndices((prev) => prev.filter((idx) => idx !== startIndex + i));
+      }
+    }
+  })();
 };
  
 const removeVideo = (indexToRemove) => {
@@ -825,6 +870,17 @@ const navigate = useNavigate();
 const handleSubmit = async (e) => {
   e.preventDefault();
 
+  // Client-side validation for required fields
+  const missing = requiredFields.filter((f) => {
+    const v = formData[f];
+    return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+  });
+  if (missing.length > 0) {
+    const names = missing.map((m) => (fieldLabels[m] || m));
+    alert('Please fill required fields: ' + names.join(', '));
+    return;
+  }
+
   try {
     let newPpcId = ppcId; // Use existing PPC-ID if available
 
@@ -864,6 +920,9 @@ const handleSubmit = async (e) => {
     formDataToSend.append("video", file); // <== field name matches backend multer: 'video'
   });
 
+    // Log key details for debugging
+    console.log('Submitting property', { ppcId: newPpcId, photosCount: photos.length, videosCount: videos.length, formData });
+
     // 🔹 Submit the property update request (update if PPC-ID exists)
     const propertyResponse = await axios.post(
       `${process.env.REACT_APP_API_URL}/update-property`,
@@ -871,10 +930,43 @@ const handleSubmit = async (e) => {
       { headers: { "Content-Type": "multipart/form-data" } }
     );
 
-    alert(propertyResponse.data.message);
-     navigate("/dashboard/property-list");
+    console.log('Property response', propertyResponse);
+    alert(propertyResponse.data?.message || 'Property submitted');
+    navigate("/dashboard/property-list");
   } catch (error) {
-    alert("An error occurred while submitting the property data.");
+    console.error('Property submit error:', error);
+    if (error?.response) {
+      console.error('Server response data:', error.response.data);
+      // If backend returned validation errors, aggregate and show them
+      const resp = error.response.data || {};
+      const backendMessage = resp.message || `Server error: ${error.response.status}`;
+      let detailMsg = '';
+      if (resp.error && resp.error.errors) {
+        try {
+          const errs = resp.error.errors;
+          const parts = Object.keys(errs).map((k) => {
+            const e = errs[k];
+            return e.message || JSON.stringify(e);
+          });
+          detailMsg = parts.join('\n');
+        } catch (e) {
+          detailMsg = JSON.stringify(resp.error.errors);
+        }
+      } else if (resp.error && resp.error.message) {
+        detailMsg = resp.error.message;
+      } else if (resp.errors) {
+        // fallback
+        detailMsg = JSON.stringify(resp.errors);
+      }
+
+      if (detailMsg) {
+        alert(`${backendMessage}:\n${detailMsg}`);
+      } else {
+        alert(backendMessage);
+      }
+    } else {
+      alert(error.message || 'An error occurred while submitting the property data.');
+    }
   }
 };
 
@@ -1296,6 +1388,11 @@ const requiredFields = [
   'areaUnit',
   'salesType',
   'postedBy',
+  // location fields now required
+  'state',
+  'city',
+  'area',
+  'pinCode',
 ];
 
    const nonDropdownFields = ["price", "length", "totalArea", "description", "city",  "area", "alternatePhone",];
@@ -1506,6 +1603,9 @@ if (!allowedRoles.includes(fileName)) {
                       title={selectedPhotoIndex === index ? 'Default Property Image - Click to change' : 'Click to set as default'}
                       style={{ display: 'block', width: '100%' }}
                     />
+                    {processingPhotoIndices.includes(index) && (
+                      <ImageLoadingOverlay visible={true} progress={photoProgress[index] || 0} />
+                    )}
                     
                     {/* Default Photo Badge with Checkmark - Positioned at bottom-right */}
                     {selectedPhotoIndex === index && (
@@ -1562,6 +1662,8 @@ if (!allowedRoles.includes(fileName)) {
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
+                      // prevent removal while processing
+                      if (processingPhotoIndices.includes(index)) return;
                       removePhoto(index);
                     }}
                     aria-label={`Remove photo ${index + 1}`}
@@ -1612,6 +1714,7 @@ if (!allowedRoles.includes(fileName)) {
               <source src={URL.createObjectURL(video)} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
+                {processingVideoIndices.includes(index) && <VideoLoadingOverlay visible={true} progress={videoProgress[index] || 0} />}
             <Button
               variant="danger"
               onClick={() => removeVideo(index)}
@@ -1759,38 +1862,67 @@ if (!allowedRoles.includes(fileName)) {
           </div>
         </div>
       ) : name === "description" ? (
-        <div
-          className="input-card p-0 rounded-1"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "100%",
-            border: "1px solid #2F747F",
-            background: "#fff",
-          }}
-        >
-          <span className="input-icon" style={{ color: "#2F747F", marginLeft: "10px" }}>
-            {fieldIcons[name] || <FaEdit />}
-          </span>
-          <textarea
-            name={name}
-            value={formData[name] || ""}
-            onChange={handleFieldChange}
-            required={requiredFields.includes(name)}
-            className="form-input m-0"
-            placeholder={`Enter ${name.replace(/([A-Z])/g, " $1")}`}
+        <div style={{ width: "100%" }}>
+          <div
+            className="input-card p-0 rounded-1"
             style={{
-              flex: "1 0 70%",
-              padding: "8px",
-              fontSize: "14px",
-              border: "none",
-              outline: "none",
-              minHeight: "100px",
-              resize: "vertical",
-              color: "#2F747F",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              width: "100%",
+              border: "1px solid #2F747F",
+              background: "#fff",
+              flexDirection: "column",
             }}
-          />
+          >
+            <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "8px" }}>
+              <span className="input-icon" style={{ color: "#2F747F" }}>
+                {fieldIcons[name] || <FaEdit />}
+              </span>
+              <textarea
+                name={name}
+                value={formData[name] || ""}
+                onChange={handleFieldChange}
+                required={requiredFields.includes(name)}
+                maxLength={250}
+                className="form-input m-0"
+                placeholder={`Enter ${name.replace(/([A-Z])/g, " $1")} (max 250 characters)`}
+                style={{
+                  flex: "1 0 70%",
+                  padding: "8px",
+                  fontSize: "14px",
+                  border: "none",
+                  outline: "none",
+                  minHeight: "100px",
+                  resize: "vertical",
+                  color: "#2F747F",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+            <div style={{ padding: "8px 12px 12px 12px", width: "100%" }}>
+              <div style={{ height: "8px", background: "#e6e6e6", borderRadius: "4px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.min(100, (((formData[name]?.length || 0) / 250) * 100))}%`,
+                    background: formData[name]?.length >= 250 ? "#d32f2f" : formData[name]?.length > 175 ? "#f2c94c" : "#4caf50",
+                    transition: "width 0.18s ease, background-color 0.18s ease",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", alignItems: "center" }}>
+                <div style={{ fontSize: "12px", color: formData[name]?.length >= 250 ? "#d32f2f" : "#666" }}>
+                  {formData[name]?.length || 0} / 250
+                </div>
+                {formData[name]?.length >= 250 && (
+                  <div style={{ fontSize: "12px", color: "#d32f2f", fontWeight: 600 }}>
+                    Limit reached
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <>
@@ -1883,7 +2015,7 @@ if (!allowedRoles.includes(fileName)) {
                     areaSuggestions.map((suggestion, index) => (
                       <div
                         key={index}
-                        onClick={() => handleAreaSelect(suggestion)}
+                        onMouseDown={(e) => { e.preventDefault(); handleAreaSelect(suggestion); }}
                         style={{
                           padding: "8px",
                           cursor: "pointer",

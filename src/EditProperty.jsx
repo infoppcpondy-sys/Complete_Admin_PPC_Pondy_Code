@@ -32,6 +32,8 @@ import { FcSearch } from "react-icons/fc";
 import { toWords } from 'number-to-words';
 import { IoCloseCircle } from "react-icons/io5";
 import { AiOutlineEye, AiOutlineColumnWidth, AiOutlineColumnHeight } from "react-icons/ai";
+import { compressImage, compressVideo } from './utils/compressionUtils';
+import { ImageLoadingOverlay, VideoLoadingOverlay } from './utils/LoadingOverlay';
 
 function EditProperty() {
   const location = useLocation();
@@ -46,6 +48,12 @@ function EditProperty() {
                             const coordRef = useRef(null);
           
            const [priceInWords, setPriceInWords] = useState("");
+          const [processingPhotoIndices, setProcessingPhotoIndices] = useState([]);
+          const [processingVideoIndices, setProcessingVideoIndices] = useState([]);
+          const [isCompressing, setIsCompressing] = useState(false);
+          const [photoProgress, setPhotoProgress] = useState({});
+          const [videoProgress, setVideoProgress] = useState({});
+          const requiredFields = ['state', 'city', 'area', 'pinCode'];
 
   const [formData, setFormData] = useState({
     phoneNumber: "",
@@ -638,11 +646,11 @@ const handleClear = () => {
  
  const handleVideoChange = (e) => {
   const selectedFiles = Array.from(e.target.files);
-  const maxSize = 50 * 1024 * 1024; // 50MB
+  const maxSize = 100 * 1024 * 1024; // 100MB
 
   const validFiles = selectedFiles.filter(file => {
     if (file.size > maxSize) {
-      alert(`${file.name} exceeds the 50MB size limit.`);
+      alert(`${file.name} exceeds the 100MB size limit.`);
       return false;
     }
     return true;
@@ -654,7 +662,30 @@ const handleClear = () => {
     return;
   }
 
-  setVideos([...videos, ...validFiles]);
+  if (!validFiles.length) return;
+
+  const startIndex = videos.length;
+  const placeholders = validFiles.map((f, i) => new File([new Blob()], `placeholder-video-${Date.now()}-${i}.mp4`, { type: 'video/mp4' }));
+  setVideos(prev => [...prev, ...placeholders].slice(0,5));
+  setProcessingVideoIndices((prev) => [...prev, ...validFiles.map((_, i) => startIndex + i)]);
+
+  (async () => {
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      try {
+        const compressed = await compressVideo(file, 200);
+        setVideos((prev) => {
+          const next = [...prev];
+          next[startIndex + i] = compressed;
+          return next.slice(0,5);
+        });
+      } catch (err) {
+        console.warn('Video compress error', err);
+      } finally {
+        setProcessingVideoIndices((prev) => prev.filter((idx) => idx !== startIndex + i));
+      }
+    }
+  })();
 };
 
  
@@ -729,19 +760,81 @@ const handleClear = () => {
   
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
-    const maxSize = 10 * 1024 * 1024; 
+    const maxSize = 50 * 1024 * 1024;
+    if (!files.length) return;
+
     for (let file of files) {
       if (file.size > maxSize) {
-        alert('File size exceeds the 10MB limit');
+        alert('File size exceeds the 50MB limit');
         return;
       }
     }
-    if (photos.length + files.length <= 15) {
-      setPhotos([...photos, ...files]);
-      setSelectedPhotoIndex(0); 
-    } else {
+
+    if (photos.length + files.length > 15) {
       alert('Maximum 15 photos can be uploaded.');
+      return;
     }
+
+    setIsCompressing(true);
+
+    const startIndex = photos.length;
+    const placeholders = files.map((f, i) => new File([new Blob()], `placeholder-${Date.now()}-${i}.png`, { type: 'image/png' }));
+    setPhotos(prev => [...prev, ...placeholders]);
+    setProcessingPhotoIndices((prev) => [...prev, ...files.map((_, i) => startIndex + i)]);
+
+    (async () => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const watermarked = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                const watermarkText = "PPC Pondy";
+                const fontSize = Math.max(24, Math.floor(canvas.width / 15));
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.lineWidth = 4;
+                ctx.strokeText(watermarkText, centerX, centerY);
+                ctx.fillStyle = "rgba(224, 223, 223, 0.9)";
+                ctx.fillText(watermarkText, centerX, centerY);
+                canvas.toBlob((blob) => {
+                  const watermarkedFile = new File([blob], file.name, { type: file.type });
+                  resolve(watermarkedFile);
+                }, file.type);
+              };
+              img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+          });
+
+          const compressed = await compressImage(watermarked, 100, (progress) => {
+            setPhotoProgress((prev) => ({ ...prev, [startIndex + i]: progress }));
+          });
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[startIndex + i] = compressed;
+            return next;
+          });
+        } catch (err) {
+          console.warn('Error processing image', err);
+        } finally {
+          setProcessingPhotoIndices((prev) => prev.filter((idx) => idx !== startIndex + i));
+        }
+      }
+      setIsCompressing(false);
+      setSelectedPhotoIndex(startIndex);
+    })();
   };
 
   const removePhoto = (index) => {
@@ -774,6 +867,16 @@ const handleClear = () => {
 
     if (!ppcId) {
       alert("PPC-ID is required. Please refresh or try again.");
+      return;
+    }
+
+    // Client-side validation for required location fields
+    const missing = requiredFields.filter((f) => {
+      const v = formData[f];
+      return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+    });
+    if (missing.length > 0) {
+      alert('Please fill required fields: ' + missing.join(', '));
       return;
     }
 
@@ -1342,6 +1445,7 @@ const shouldHideField = (fieldName) =>
                   border: selectedPhotoIndex === index ? '3px solid #4CAF50' : 'none'
                 }}
               />
+              {processingPhotoIndices.includes(index) && <ImageLoadingOverlay visible={true} progress={photoProgress[index] || 0} />}
               
               {/* Default Photo Badge with Checkmark - Bottom-right */}
               {selectedPhotoIndex === index && (
@@ -1454,8 +1558,9 @@ const shouldHideField = (fieldName) =>
                type={video instanceof File ? video.type : "video/mp4"} />
                    Your browser does not support the video tag.
                  </video>
+                 {processingVideoIndices.includes(index) && <VideoLoadingOverlay visible={true} progress={videoProgress[index] || 0} />}
                  <Button
-                   onClick={() => removeVideo(index)}
+                   onClick={() => { if (processingVideoIndices.includes(index)) return; removeVideo(index); }}
                    style={{ border: 'none', background: 'transparent' }}
                    className="position-absolute top-0 end-0 m-1 p-1"
                  >
@@ -2367,15 +2472,43 @@ const shouldHideField = (fieldName) =>
 
 <div className="form-group">
   <label>Description:</label>
-  <textarea
-    name="description"
-    value={formData.description}
-    onChange={handleFieldChange}
-    className="form-control"
-    placeholder="Maximum 250 characters"
-    maxLength={250} // Limits input to 250 characters
-  ></textarea>
-  <small className="text-muted">Maximum 250 characters allowed.</small>
+  <div style={{ width: "100%" }}>
+    <textarea
+      name="description"
+      value={formData.description}
+      onChange={handleFieldChange}
+      className="form-control"
+      placeholder="Enter Description (max 250 characters)"
+      maxLength={250}
+      style={{
+        marginBottom: "0",
+        borderBottomLeftRadius: "0",
+        borderBottomRightRadius: "0",
+      }}
+    ></textarea>
+    <div style={{ padding: "8px 12px 12px 12px", width: "100%" }}>
+      <div style={{ height: "8px", background: "#e6e6e6", borderRadius: "4px", overflow: "hidden" }}>
+        <div
+          style={{
+            height: "100%",
+            width: `${Math.min(100, (((formData.description?.length || 0) / 250) * 100))}%`,
+            background: formData.description?.length >= 250 ? "#d32f2f" : formData.description?.length > 175 ? "#f2c94c" : "#4caf50",
+            transition: "width 0.18s ease, background-color 0.18s ease",
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", alignItems: "center" }}>
+        <div style={{ fontSize: "12px", color: formData.description?.length >= 250 ? "#d32f2f" : "#666" }}>
+          {formData.description?.length || 0} / 250
+        </div>
+        {formData.description?.length >= 250 && (
+          <div style={{ fontSize: "12px", color: "#d32f2f", fontWeight: 600 }}>
+            Limit reached
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
 </div>
 
                 <div>
@@ -2708,7 +2841,7 @@ const shouldHideField = (fieldName) =>
   {/* State */}
 
 <div className="form-group">
-  <label>State:</label>
+  <label>State: <span style={{ color: 'red' }}>*</span></label>
   <div className="input-card p-0 rounded-1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%',  border: '1px solid #2F747F', background:"#fff" }}>
     <MdLocationCity className="input-icon" style={{color: '#2F747F', marginLeft:"10px"}} />
     <input
@@ -2718,6 +2851,7 @@ const shouldHideField = (fieldName) =>
       onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="State"
+      required
       style={{ flex: '1 0 80%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
     />
   </div>
@@ -2725,7 +2859,7 @@ const shouldHideField = (fieldName) =>
   {/* City */}
 
 <div className="form-group">
-  <label>City:</label>
+  <label>City: <span style={{ color: 'red' }}>*</span></label>
   <div className="input-card p-0 rounded-1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%',  border: '1px solid #2F747F', background:"#fff" }}>
     <FaCity className="input-icon" style={{color: '#2F747F', marginLeft:"10px"}} />
     <input
@@ -2735,6 +2869,7 @@ const shouldHideField = (fieldName) =>
       onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="City"
+      required
       style={{ flex: '1 0 80%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
     />
   </div>
@@ -2792,7 +2927,7 @@ const shouldHideField = (fieldName) =>
 
   {/* area */}
   <div className="form-group">
-  <label>Area:</label>
+  <label>Area: <span style={{ color: 'red' }}>*</span></label>
   <div className="input-card p-0 rounded-1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%',  border: '1px solid #2F747F', background:"#fff" }}>
     <MdLocationOn className="input-icon" style={{color: '#2F747F', marginLeft:"10px"}} />
     <div style={{ flex: "1 0 80%", position: "relative" }}>
@@ -2805,6 +2940,7 @@ const shouldHideField = (fieldName) =>
         onBlur={handleAreaBlur}
         className="form-input m-0"
         placeholder="Area"
+        required
         style={{ width: "100%", padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
       />
       
@@ -2827,7 +2963,7 @@ const shouldHideField = (fieldName) =>
             areaSuggestions.map((suggestion, index) => (
               <div
                 key={index}
-                onClick={() => handleAreaSelect(suggestion)}
+                onMouseDown={(e) => { e.preventDefault(); handleAreaSelect(suggestion); }}
                 style={{
                   padding: "8px",
                   cursor: "pointer",
@@ -2904,7 +3040,7 @@ const shouldHideField = (fieldName) =>
   </div>
 </div>
 <div className="form-group">
-  <label>pinCode:</label>
+  <label>pinCode: <span style={{ color: 'red' }}>*</span></label>
   <div className="input-card p-0 rounded-1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%',  border: '1px solid #2F747F', background:"#fff" }}>
     <TbMapPinCode  className="input-icon" style={{color: '#2F747F', marginLeft:"10px"}} />
     <input
@@ -2914,6 +3050,7 @@ const shouldHideField = (fieldName) =>
       onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="pinCode"
+      required
       style={{ flex: '1 0 80%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
     />
   </div>

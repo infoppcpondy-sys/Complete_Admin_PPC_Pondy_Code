@@ -655,7 +655,7 @@ const handleConfirmSubmit = async () => {
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onClick={() => navigate(`/Buyer-List-Filter`)}
+        onClick={() => navigate('/dashboard/get-buyer-assistance')}
 
    >view Buyer List</button>
 
