@@ -455,7 +455,6 @@ const handleSubmit = async ({ price, phoneNumber, ppcId }) => {
   
 
 
-  const maxImages = 15;
       const [currentIndex, setCurrentIndex] = useState(1);
     
       const handleSlideChange = (swiper) => {
@@ -1063,7 +1062,7 @@ const currentUrl = `${window.location.origin}${location.pathname}`; // <- Works 
     </div>
   </div>
   <div className="text-center mt-2">
-    {Math.min(currentIndex, images.length)}/{maxImages}
+    {Math.min(currentIndex, imageCount || images.length)}/{imageCount || images.length}
   </div>
 </div>
 
@@ -1408,7 +1407,7 @@ return (
                 <img src={images[currentImageIndex]} alt={`Large Property Image`} style={{ width: "100%", height: "auto" }} />
               </div>
               <div className="modal-footer">
-                <p className="text-muted">Total Images: {images.length}</p>
+                <p className="text-muted">Image: {currentImageIndex + 1} of {imageCount || images.length}</p>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Close</button>
               </div>
             </div>

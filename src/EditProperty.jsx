@@ -53,7 +53,20 @@ function EditProperty() {
           const [isCompressing, setIsCompressing] = useState(false);
           const [photoProgress, setPhotoProgress] = useState({});
           const [videoProgress, setVideoProgress] = useState({});
-          const requiredFields = ['state', 'city', 'area', 'pinCode'];
+          const requiredFields = [
+            'propertyMode',
+            'propertyType',
+            'price',
+            'totalArea',
+            'areaUnit',
+            'salesType',
+            'postedBy',
+            'state',
+            'city',
+            'area',
+            'pinCode',
+          ];
+          const [saveNotice, setSaveNotice] = useState("");
 
   const [formData, setFormData] = useState({
     phoneNumber: "",
@@ -870,18 +883,29 @@ const handleClear = () => {
       return;
     }
 
-    // Client-side validation for required location fields
+    // Evaluate mandatory fields for completion status but DO NOT block saving
     const missing = requiredFields.filter((f) => {
       const v = formData[f];
       return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
     });
+
+    // Decide status according to existing system values
+    // missing -> 'incomplete' (Pending), all present -> 'complete' (Preapproved)
+    const statusToSend = missing.length > 0 ? 'incomplete' : 'complete';
+
+    // Non-blocking informational notice for the user
     if (missing.length > 0) {
-      alert('Please fill required fields: ' + missing.join(', '));
-      return;
+      setSaveNotice('Mandatory fields are not fully filled. Property saved as Pending.');
+      toast.info('Mandatory fields are not fully filled — you can save now and complete them later. Property saved as Pending.');
+    } else {
+      setSaveNotice('All mandatory fields filled. Property saved as Preapproved.');
+      toast.info('All mandatory fields filled. Property saved as Preapproved.');
     }
 
     const formDataToSend = new FormData();
     formDataToSend.append("ppcId", ppcId);
+    // Attach status so backend/listings can reuse existing Pending/Preapproved logic
+    formDataToSend.append('status', statusToSend);
 
     Object.keys(formData).forEach((key) => {
       formDataToSend.append(key, formData[key]);
@@ -1393,7 +1417,7 @@ const shouldHideField = (fieldName) =>
 
         {photos.length > 0 && (
           <div className="uploaded-photos">
-            <h4>Uploaded Photos</h4>
+            <h4>Uploaded Photos <span style={{ color: '#2F747F', fontSize: '0.85em' }}>({photos.length}/15)</span></h4>
             <div className="uploaded-photos-grid">
             {photos.map((photo, index) => {
         let photoUrl = "";
@@ -2865,7 +2889,7 @@ const shouldHideField = (fieldName) =>
     <input
       type="text"
       name="city"
-      value={formData.city} readOnly
+      value={formData.city}
       onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="City"
@@ -3233,6 +3257,17 @@ const shouldHideField = (fieldName) =>
     </label>
   </div>
   </div>
+                {saveNotice && (
+                  <div style={{
+                    backgroundColor: '#fff3cd',
+                    color: '#856404',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    marginBottom: '8px'
+                  }}>
+                    {saveNotice}
+                  </div>
+                )}
                 <Button
                   type="submit"
                   style={{ marginTop: '15px', backgroundColor: "rgb(47,116,127)", border:"none" }}

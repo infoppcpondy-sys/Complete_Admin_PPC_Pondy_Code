@@ -24,6 +24,7 @@ import { compressImage, compressVideo } from './utils/compressionUtils';
 import { ImageLoadingOverlay, VideoLoadingOverlay } from './utils/LoadingOverlay';
 import { toWords } from 'number-to-words';
 import { FcSearch } from "react-icons/fc";
+import { toast } from "react-toastify";
 
 
 function AddProperty() {
@@ -45,6 +46,7 @@ function AddProperty() {
                   const coordRef = useRef(null);
 
            const [priceInWords, setPriceInWords] = useState("");
+          const [saveNotice, setSaveNotice] = useState("");
 
   const [formData, setFormData] = useState({
      propertyMode: '',
@@ -870,15 +872,23 @@ const navigate = useNavigate();
 const handleSubmit = async (e) => {
   e.preventDefault();
 
-  // Client-side validation for required fields
+  // Check mandatory fields but DO NOT block saving
   const missing = requiredFields.filter((f) => {
     const v = formData[f];
     return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
   });
+
+  // Decide status according to existing system values
+  // missing -> 'incomplete' (Pending), all present -> 'complete' (Preapproved)
+  const statusToSend = missing.length > 0 ? 'incomplete' : 'complete';
+
+  // Non-blocking informational notice for the user
   if (missing.length > 0) {
-    const names = missing.map((m) => (fieldLabels[m] || m));
-    alert('Please fill required fields: ' + names.join(', '));
-    return;
+    setSaveNotice('Mandatory fields are not fully filled. Property saved as Pending.');
+    toast.info('Mandatory fields are not fully filled — you can save now and complete them later. Property saved as Pending.');
+  } else {
+    setSaveNotice('All mandatory fields filled. Property saved as Preapproved.');
+    toast.info('All mandatory fields filled. Property saved as Preapproved.');
   }
 
   try {
@@ -903,12 +913,13 @@ const handleSubmit = async (e) => {
     // Append PPC-ID (existing or newly generated)
     formDataToSend.append("ppcId", newPpcId);
 
-    // Append form fields
+    // Append all form fields (include empty values) so backend gets explicit fields
     Object.keys(formData).forEach((key) => {
-      if (formData[key]) {
-        formDataToSend.append(key, formData[key]);
-      }
+      formDataToSend.append(key, formData[key] === undefined || formData[key] === null ? '' : formData[key]);
     });
+
+    // Attach status so backend/listings can reuse existing Pending/Preapproved logic
+    formDataToSend.append('status', statusToSend);
 
     // Append photos
     photos.forEach((photo) => {
@@ -932,7 +943,13 @@ const handleSubmit = async (e) => {
 
     console.log('Property response', propertyResponse);
     alert(propertyResponse.data?.message || 'Property submitted');
-    navigate("/dashboard/property-list");
+    
+    // If all mandatory fields are filled, redirect to Preapproved Property; otherwise to Property List
+    if (statusToSend === 'complete') {
+      navigate("/dashboard/pre-approved-car");
+    } else {
+      navigate("/dashboard/property-list");
+    }
   } catch (error) {
     console.error('Property submit error:', error);
     if (error?.response) {
@@ -2052,6 +2069,12 @@ if (!allowedRoles.includes(fileName)) {
     </div>
   );
 })}
+
+        {saveNotice && (
+          <div style={{ margin: '8px 0', padding: '8px', background: '#fff3cd', color: '#856404', borderRadius: 6 }} role="status">
+            {saveNotice}
+          </div>
+        )}
 
         <button type="submit" style={{background:"#2F747F", color:"#fff"}}>
           Save Property

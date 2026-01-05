@@ -4,6 +4,8 @@
 
 
 import React, { useEffect } from "react";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import Admin from "./Admin";
@@ -49,6 +51,7 @@ const App = () => {
    
 
     <Router basename="/process">
+      <ToastContainer position="top-right" autoClose={5000} />
     <Routes>
       <Route path="/admin" element={<Admin />} />
       <Route path="/dashboard/*" element={<Dashboard />} />

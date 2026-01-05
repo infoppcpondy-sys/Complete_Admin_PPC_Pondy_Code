@@ -6,7 +6,7 @@ import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { Table, Form, Button,Modal } from 'react-bootstrap';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FaEdit, FaEye } from "react-icons/fa";
 import { MdDeleteForever } from "react-icons/md";
 
@@ -77,6 +77,14 @@ const handleStatusChange = async (ppcId, currentStatus) => {
         }
       });
   
+      // Remove any ppcIds passed via navigation state that should be treated as cleared
+      const cleared = location?.state?.clearedPpcIds || [];
+      if (Array.isArray(cleared) && cleared.length > 0) {
+        cleared.forEach(id => {
+          if (map[id]) delete map[id];
+        });
+      }
+
       setBillMap(map);
     } catch (error) {
     }
@@ -102,6 +110,14 @@ useEffect(() => {
         }
       });
   
+      // Remove cleared ppcIds from follow-up map as well
+      const cleared2 = location?.state?.clearedPpcIds || [];
+      if (Array.isArray(cleared2) && cleared2.length > 0) {
+        cleared2.forEach(id => {
+          if (map[id]) delete map[id];
+        });
+      }
+
       setFollowUpMap(map);
     } catch (err) {
     }
@@ -167,6 +183,7 @@ const statusColorMap = {
 
 
   const navigate=useNavigate();
+  const location = useLocation();
 
    const [search, setSearch] = useState("");
       const [fromDate, setFromDate] = useState("");
@@ -181,8 +198,13 @@ const statusColorMap = {
               (a, b) => new Date(b.createdAt) - new Date(a.createdAt) // New to old
             );
             
-            setProperties(sortedUsers);
-            setFiltered(sortedUsers);
+            // Filter for properties with status 'complete' (all mandatory fields filled)
+            const completeProperties = sortedUsers.filter(prop => 
+              prop.status === 'complete' || !prop.status // Include if no status (backward compatibility)
+            );
+            
+            setProperties(completeProperties);
+            setFiltered(completeProperties);
           } catch (err) {
           }
         };
