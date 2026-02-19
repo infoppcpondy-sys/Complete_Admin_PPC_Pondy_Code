@@ -365,7 +365,7 @@ const handleUndoDelete = async (id) => {
                 <td>Status Change</td>
                 <th>Actions</th>
                 <th>View</th>
-                <th>Status Change</th>
+                {/* <th>Status Change</th> */}
                 <th>Edit Buyer Assistance</th>
               </tr>
             </thead>
@@ -441,14 +441,14 @@ const handleUndoDelete = async (id) => {
             </button>
           </td>
           <td>
-            <button
+            {/* <button
               className={`btn btn-sm btn-${request.ba_status === "baPending" ? "warning" : "success"}`}
               onClick={() => handleStatusToggle(requestId, request.ba_status)}
             >
               {request.ba_status === "baPending" ?"Deactivate" :"Activate"  }
             </button>
           </td>
-          <td>
+          <td> */}
   <button
     className="btn btn-outline-secondary btn-sm"
     onClick={() => handleEdit(request.ba_id)}
