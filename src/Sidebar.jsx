@@ -78,15 +78,28 @@ const menuItems = [
       { label: 'Add Office', path: '/dashboard/add-office' },
     ],
   },
+  {
+    title: 'Whatsapp Send',
+    icon: <FaBell size={20} style={{ marginRight: '10px' }} />,
+    subItems: [
+      { label: 'Send Message', path: '/dashboard/whatsapp-send', icon: <FaBell size={16} /> },
+    ],
+  },
   // Add more sections as needed
 ];
   const [openSections, setOpenSections] = useState({});
 
-  const toggleSection = (title) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
+  const toggleSection = (sectionId) => {
+    setOpenSections((prev) => {
+      const newState = {};
+      // Close all sections
+      Object.keys(prev).forEach((key) => {
+        newState[key] = false;
+      });
+      // Toggle the clicked section
+      newState[sectionId] = !prev[sectionId];
+      return newState;
+    });
   };
   return (
     <div className={`sidebar ${isOpen ? "sidebar-open" : ""} p-3 m-3`}>
@@ -96,13 +109,16 @@ const menuItems = [
       <hr></hr>
       <nav>
       
-        <ul>
+        <ul id="sidebarMenu">
    
-          <li className="p-3 text-white" style={{borderRadius:"5px", background:"#8BC34A"}}>
+          <li className="p-3 text-white" 
+            onClick={() => toggleSection('dashboardMenu')}
+            style={{borderRadius:"5px", background:"#8BC34A", cursor: "pointer"}}>
       
               <RiDashboardHorizontalFill size={20} style={{marginRight:'10px '}}/>
               Dashboard
           </li>
+          <ul className={`collapse ${openSections.dashboardMenu ? 'show' : ''}`} id="dashboardMenu">
           <li className="p-0 mt-2" >
             <NavLink 
               to="/dashboard/statistics" 
@@ -144,18 +160,16 @@ const menuItems = [
       BA Daily Report
     </NavLink>
   </li>
+</ul>
 
           <li className="p-3 mt-2  text-white" 
-            data-bs-toggle="collapse"
-  data-bs-target="#reportMenu"
-  aria-expanded="false"
-  aria-controls="reportMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+            onClick={() => toggleSection('reportMenu')}
+            style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
       
               <MdReport size={20} style={{marginRight:'10px '}}/>
               Report
           </li>
-          <ul className="collapse " id="reportMenu">
+          <ul className={`collapse ${openSections.reportMenu ? 'show' : ''}`} id="reportMenu">
 
           <li className="p-0 mt-2" >
             <NavLink 
@@ -211,16 +225,13 @@ const menuItems = [
 </ul> 
 <li
   className="p-3 mt-2 text-white"
+  onClick={() => toggleSection('LoginDirectMenu')}
   style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}
-  data-bs-toggle="collapse"
-  data-bs-target="#LoginDirectMenu"
-  aria-expanded="false"
-  aria-controls="LoginDirectMenu"
 >
   <MdReport size={20} style={{ marginRight: "10px" }} />
   Login Direct
 </li>
-     <ul className="collapse " id="LoginDirectMenu">
+     <ul className={`collapse ${openSections.LoginDirectMenu ? 'show' : ''}`} id="LoginDirectMenu">
       
  <li className="p-0 mt-2" >
             <NavLink 
@@ -271,16 +282,13 @@ const menuItems = [
 
 
 <li className="p-3 mt-2  text-white" 
-  data-bs-toggle="collapse"
-  data-bs-target="#NotificationMenu"
-  aria-expanded="false"
-  aria-controls="NotificationMenu"
+  onClick={() => toggleSection('NotificationMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
            
               <FaBell size={20} style={{marginRight:'10px '}}/>
               Notification
           </li>
-<ul className="collapse " id="NotificationMenu">
+<ul className={`collapse ${openSections.NotificationMenu ? 'show' : ''}`} id="NotificationMenu">
 
           <li className="p-0 mt-2" >
         <NavLink
@@ -303,17 +311,38 @@ const menuItems = [
  </NavLink>
       </li>
 </ul>
-      <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#OfficeMenu"
-  aria-expanded="false"
-  aria-controls="OfficeMenu"
+
+
+
+<li className="p-3 mt-2  text-white" 
+  onClick={() => toggleSection('WhatsappMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+           
+              <FaBell size={20} style={{marginRight:'10px '}}/>
+              Whatsapp Send
+          </li>
+<ul className={`collapse ${openSections.WhatsappMenu ? 'show' : ''}`} id="WhatsappMenu">
+
+      <li className="p-0 mt-2" >
+       <NavLink
+          to="/dashboard/whatsapp-send"
+           onClick={toggleSidebar}
+          className={({ isActive }) => (isActive ? "active-link rounded" : "")}
+        > 
+          <FaBell size={20}/>
+          Send Message 
+        </NavLink>
+      </li>
+</ul>
+
+      <li className="p-3 mt-2  text-white" 
+        onClick={() => toggleSection('OfficeMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
      
           <FaBuilding size={20} style={{marginRight:'10px '}}/>
           Office Setup
       </li>
-<ul className="collapse " id="OfficeMenu">
+<ul className={`collapse ${openSections.OfficeMenu ? 'show' : ''}`} id="OfficeMenu">
 
       <li className="p-0 mt-2" >
        <NavLink
@@ -467,19 +496,66 @@ const menuItems = [
 </ul>
 
 
+<li className="p-3 mt-2  text-white" 
+    onClick={() => toggleSection('BuyerAssistantMenu')}
+   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+      <FaUser style={{marginRight:'10px '}}/>
+      Buyer Assistant
+  </li>
+  <ul className={`collapse ${openSections.BuyerAssistantMenu ? 'show' : ''}`} id="BuyerAssistantMenu">
 
+  <li className="p-0 mt-2">
+    <NavLink to="/dashboard/add-buyer-assistance"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+     Add Buyers Assistantce
+    </NavLink>
+  </li>
+  <li className="p-0 mt-2">
+    <NavLink to="/dashboard/get-buyer-assistance"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+     Get Buyers Assistantce
+    </NavLink>
+  </li>
+   <li className="p-0 mt-2">
+    <NavLink to="/dashboard/active-buyer-assistant" 
+     onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+      Buyer Active Assistant
+    </NavLink>
+  </li>
+
+  <li className="p-0 mt-2">
+    <NavLink to="/dashboard/pending-assistant"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+      Pending Assistant
+    </NavLink>
+  </li>
+
+   <li className="p-0 mt-2">
+    <NavLink to="/dashboard/get-all-buyerlist-viewed"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+      Buyer Assistant Viewed User
+    </NavLink>
+  </li>
+
+  <li className="p-0 mt-2">
+    <NavLink to="/dashboard/expired-assistant" 
+     onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
+      <FaUsers />
+      Expired Assistant
+    </NavLink>
+  </li>
+  
+</ul>
 
       <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#PPCMenu"
-  aria-expanded="false"
-  aria-controls="PPCMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+        onClick={() => toggleSection('PPCMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
      
           <FaBuilding size={20} style={{marginRight:'10px '}}/>
           PPC Property
       </li>
-<ul className="collapse " id="PPCMenu">
+<ul className={`collapse ${openSections.PPCMenu ? 'show' : ''}`} id="PPCMenu">
  
      <li className="p-0 mt-2" >
         <NavLink
@@ -636,16 +712,13 @@ const menuItems = [
  
 
       <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#AccountsMenu"
-  aria-expanded="false"
-  aria-controls="AccountsMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+        onClick={() => toggleSection('AccountsMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
     
     <FaCar style={{marginRight:'10px '}}/>
     PPC prop Accounts
 </li>
-<ul className="collapse " id="AccountsMenu">
+<ul className={`collapse ${openSections.AccountsMenu ? 'show' : ''}`} id="AccountsMenu">
 
  
          <li className="p-0 mt-2">
@@ -747,16 +820,13 @@ Upload Detail Ads Images
 </ul>
 
   <li className="p-3 mt-2  text-white" 
-    data-bs-toggle="collapse"
-  data-bs-target="#CustomerMenu"
-  aria-expanded="false"
-  aria-controls="CustomerMenu"
+    onClick={() => toggleSection('CustomerMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
       <FaPhone style={{marginRight:'10px '}}/>
       Customer Care
   </li>
 
-<ul className="collapse " id="CustomerMenu">
+<ul className={`collapse ${openSections.CustomerMenu ? 'show' : ''}`} id="CustomerMenu">
 
 <li className="p-0 mt-2">
     <NavLink to="/dashboard/customer-car"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
@@ -796,17 +866,14 @@ User Called exprience Datas
 
 
 <li className="p-3 mt-2  text-white" 
-  data-bs-toggle="collapse"
-  data-bs-target="#PropertyMenu"
-  aria-expanded="false"
-  aria-controls="PropertyMenu"
+  onClick={() => toggleSection('PropertyMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
      
           <FaCar style={{marginRight:'10px '}}/>
           Property List
       </li>
 
-<ul className="collapse " id="PropertyMenu">
+<ul className={`collapse ${openSections.PropertyMenu ? 'show' : ''}`} id="PropertyMenu">
 
   <li className="p-0 mt-2">
     <NavLink to="/dashboard/developer-property"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
@@ -850,72 +917,16 @@ User Called exprience Datas
       </li>
 </ul>
 
-  <li className="p-3 mt-2  text-white" 
-    data-bs-toggle="collapse"
-  data-bs-target="#BuyerAssistantMenu"
-  aria-expanded="false"
-  aria-controls="BuyerAssistantMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
-      <FaUser style={{marginRight:'10px '}}/>
-      Buyer Assistant
-  </li>
-  <ul className="collapse " id="BuyerAssistantMenu">
-
-  <li className="p-0 mt-2">
-    <NavLink to="/dashboard/add-buyer-assistance"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-     Add Buyers Assistantce
-    </NavLink>
-  </li>
-  <li className="p-0 mt-2">
-    <NavLink to="/dashboard/get-buyer-assistance"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-     Get Buyers Assistantce
-    </NavLink>
-  </li>
-   <li className="p-0 mt-2">
-    <NavLink to="/dashboard/active-buyer-assistant" 
-     onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-      Buyer Active Assistant
-    </NavLink>
-  </li>
-
-  <li className="p-0 mt-2">
-    <NavLink to="/dashboard/pending-assistant"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-      Pending Assistant
-    </NavLink>
-  </li>
-
-   <li className="p-0 mt-2">
-    <NavLink to="/dashboard/get-all-buyerlist-viewed"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-      Buyer Assistant Viewed User
-    </NavLink>
-  </li>
-
-  <li className="p-0 mt-2">
-    <NavLink to="/dashboard/expired-assistant" 
-     onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
-      <FaUsers />
-      Expired Assistant
-    </NavLink>
-  </li>
   
-</ul>
 
   <li className="p-3 mt-2  text-white" 
-    data-bs-toggle="collapse"
-  data-bs-target="#BuyerPayUMenu"
-  aria-expanded="false"
-  aria-controls="BuyerPayUMenu"
+    onClick={() => toggleSection('BuyerPayUMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
      
           <FaCar style={{marginRight:'10px '}}/>
          Buyer PayU 
       </li>
-<ul className="collapse " id="BuyerPayUMenu">
+<ul className={`collapse ${openSections.BuyerPayUMenu ? 'show' : ''}`} id="BuyerPayUMenu">
 
        <li className="p-0 mt-2">
     <NavLink to="/dashboard/payment-success-buyer" 
@@ -971,16 +982,13 @@ Buyer Assistant Pay Later
 </ul>
 
   <li className="p-3 mt-2  text-white" 
-    data-bs-toggle="collapse"
-  data-bs-target="#BussinessSupporMenu"
-  aria-expanded="false"
-  aria-controls="BussinessSupporMenu"
+    onClick={() => toggleSection('BussinessSupporMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
       <FaUser style={{marginRight:'10px '}}/>
       Bussiness Support prop
   </li>
 
-<ul className="collapse " id="BussinessSupporMenu">
+<ul className={`collapse ${openSections.BussinessSupporMenu ? 'show' : ''}`} id="BussinessSupporMenu">
 
     <li className="p-0 mt-2">
     <NavLink to="/dashboard/searched-data" 
@@ -1093,15 +1101,12 @@ All Views Datas        </NavLink>
  
 
       <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#LeadMenu"
-  aria-expanded="false"
-  aria-controls="LeadMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+        onClick={() => toggleSection('LeadMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
 
           <RiBankCard2Fill size={20} style={{marginRight:'10px '}}/> Lead Menu
       </li>
-      <ul className="collapse " id="LeadMenu">
+      <ul className={`collapse ${openSections.LeadMenu ? 'show' : ''}`} id="LeadMenu">
 
       <li className="p-0 mt-2">
         <NavLink to="/dashboard/property-loan-lead"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
@@ -1168,16 +1173,13 @@ All Views Datas        </NavLink>
 
 
 <li className="p-3 mt-2  text-white" 
-  data-bs-toggle="collapse"
-  data-bs-target="#NoPropertyUsersMenu"
-  aria-expanded="false"
-  aria-controls="NoPropertyUsersMenu"
+  onClick={() => toggleSection('NoPropertyUsersMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
  
           <FaBuilding style={{marginRight:'10px '}}/>
           No Property Users
       </li>
-<ul className="collapse " id="NoPropertyUsersMenu">
+<ul className={`collapse ${openSections.NoPropertyUsersMenu ? 'show' : ''}`} id="NoPropertyUsersMenu">
 
  <li className="p-0 mt-2">
         <NavLink to="/dashboard/without-property-user" onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>
@@ -1200,16 +1202,13 @@ All Views Datas        </NavLink>
 
       
   <li className="p-3 mt-2  text-white" 
-    data-bs-toggle="collapse"
-  data-bs-target="#BusinessStaticsMenu"
-  aria-expanded="false"
-  aria-controls="BusinessStaticsMenu"
+    onClick={() => toggleSection('BusinessStaticsMenu')}
    style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
  
           <FaChartLine style={{marginRight:'10px '}}/>
           Business Statics
       </li>
-<ul className="collapse " id="BusinessStaticsMenu">
+<ul className={`collapse ${openSections.BusinessStaticsMenu ? 'show' : ''}`} id="BusinessStaticsMenu">
 
 <li className="p-0 mt-2">
         <NavLink to="/dashboard/carstatics"
@@ -1265,14 +1264,11 @@ All Views Datas        </NavLink>
     
       
       <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#FollowUpsMenu"
-  aria-expanded="false"
-  aria-controls="FollowUpsMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+        onClick={() => toggleSection('FollowUpsMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
           <RiNewspaperFill size={20} style={{marginRight:'10px '}}/> Follow Ups
       </li>
-      <ul className="collapse " id="FollowUpsMenu">
+      <ul className={`collapse ${openSections.FollowUpsMenu ? 'show' : ''}`} id="FollowUpsMenu">
 
       <li className="p-0 mt-2">
         <NavLink to="/dashboard/car-follow-ups" 
@@ -1312,14 +1308,11 @@ All Views Datas        </NavLink>
 </ul>
 
       <li className="p-3 mt-2  text-white" 
-        data-bs-toggle="collapse"
-  data-bs-target="#SettingsMenu"
-  aria-expanded="false"
-  aria-controls="SettingsMenu"
-   style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
+        onClick={() => toggleSection('SettingsMenu')}
+       style={{borderRadius:"5px",  background:"#8BC34A", cursor: "pointer"}}>
           <RiSettings5Fill size={20} style={{marginRight:'10px '}}/> Settings
       </li>
-      <ul className="collapse " id="SettingsMenu">
+      <ul className={`collapse ${openSections.SettingsMenu ? 'show' : ''}`} id="SettingsMenu">
 
       <li className="p-0 mt-2">
         <NavLink to="/dashboard/user-rolls"  onClick={toggleSidebar} className={({ isActive }) => (isActive ? "active-link rounded" : "")}>

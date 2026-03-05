@@ -14,6 +14,8 @@ import {
   FaMapMarkerAlt, FaLandmark, FaRuler, FaCreditCard,
   FaChevronDown, FaTimes
 } from 'react-icons/fa';
+import AccessDenied from './components/AccessDenied';
+// } from 'react-icons/fa';
 import imge from "./Assets/ppbuyer.png";
 import minprice from "./Assets/Price Mini-01.png";
 import maxprice from "./Assets/Price maxi-01.png";
@@ -209,11 +211,7 @@ await axios.put(`${process.env.REACT_APP_API_URL}/update-buyer-Assistance/${ba_i
   if (loading) return <p>Loading...</p>;
 
   if (!allowedRoles.includes(fileName)) {
-    return (
-      <div className="text-center text-red-500 font-semibold text-lg mt-10">
-        Only admin is allowed to view this file.
-      </div>
-    );
+    return <AccessDenied userRole={adminRole} fileName={fileName} />;
   }
 
   return (

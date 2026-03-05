@@ -8,7 +8,7 @@
 
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
@@ -31,10 +31,29 @@ const Admin = () => {
 
   const [step, setStep] = useState('login'); // 'login' | 'verify'
   const [loading, setLoading] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState([]);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const officeOptions = ['ADMIN', 'ARV 1', 'ARV 2', 'ARV 3'];
+
+  // Fetch available roles on component mount
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/available-roles`);
+        if (response.data.success) {
+          setAvailableRoles(response.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching roles:", err);
+        // Fallback to default roles if fetch fails
+        setAvailableRoles(['manager', 'admin', 'accountant']);
+      }
+    };
+
+    fetchRoles();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +85,7 @@ const Admin = () => {
       // Send OTP after successful login
       const otpRes = await axios.post(
         `${process.env.REACT_APP_API_URL}/send-otp-login`,
-        { officeName }
+        { officeName, adminName: name }
       );
 
       if (otpRes?.data?.success) {
@@ -120,10 +139,19 @@ const Admin = () => {
         {
           officeName: formData.officeName,
           otp: formData.otp,
+          adminName: formData.name,
         }
       );
 
       if (otpRes.data.success) {
+        // ✅ SET LOCALSTORAGE - Prevent URL Bypass
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('adminName', formData.name);
+        localStorage.setItem('otpVerified', 'true');
+        localStorage.setItem('adminRole', formData.role);
+        localStorage.setItem('adminUserType', formData.userType);
+        localStorage.setItem('adminOffice', formData.officeName);
+
         dispatch(setAdminData({
           name: formData.name,
           role: formData.role,
@@ -132,7 +160,7 @@ const Admin = () => {
         }));
 
         toast.success("Login Successful");
-        navigate('/dashboard/statistics');
+        navigate('/dashboard/statistics', { replace: true });
       } else {
         toast.error(otpRes.data.message || "Invalid OTP");
       }
@@ -211,9 +239,19 @@ const Admin = () => {
                       required
                     >
                       <option value="">Select Role</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                      <option value="accountant">Accountant</option>
+                      {availableRoles.length > 0 ? (
+                        availableRoles.map((role) => (
+                          <option key={role} value={role.toLowerCase()}>
+                            {role}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="manager">Manager</option>
+                          <option value="admin">Admin</option>
+                          <option value="accountant">Accountant</option>
+                        </>
+                      )}
                     </Form.Control>
                   </Form.Group>
 

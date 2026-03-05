@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";import { Table, Pagination, Modal, Button } from "react-bootstrap";
+import AccessDenied from './components/AccessDenied';
 
 const PayUMoney = () => {
      const [fromDate, setFromDate] = useState("");
@@ -142,11 +143,7 @@ const PayUMoney = () => {
    if (loading) return <p>Loading...</p>;
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
   return (

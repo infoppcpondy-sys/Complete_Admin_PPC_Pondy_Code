@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useSelector } from "react-redux";
 import moment from "moment";
+import AccessDenied from './components/AccessDenied';
 
 const MyAccount = () => {
   const [phonenumber, setPhonenumber] = useState('');
@@ -106,11 +107,7 @@ const MyAccount = () => {
    if (loading) return <p>Loading...</p>;
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
 

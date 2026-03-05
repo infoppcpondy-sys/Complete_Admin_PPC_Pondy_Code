@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { FaFlag, FaBan, FaTrash, FaUndo, FaCheck } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { Table, Modal, Button, Badge } from 'react-bootstrap';
+import AccessDenied from './components/AccessDenied';
 
 const LoginReportTable = () => {
   const [users, setUsers] = useState([]);
@@ -312,11 +313,7 @@ const LoginReportTable = () => {
   };
 
   if (!allowedRoles.includes(fileName)) {
-    return (
-      <div className="text-center text-danger font-weight-bold mt-5">
-        Only admin is allowed to view this file.
-      </div>
-    );
+    return <AccessDenied userRole={adminRole} fileName={fileName} />;
   }
 
   return (

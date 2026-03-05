@@ -11,7 +11,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import autoTable from "jspdf-autotable"; // <-- This is the critical missing part
+import autoTable from "jspdf-autotable";
+import AccessDenied from './components/AccessDenied';
 
 
 
@@ -312,11 +313,7 @@ const exportToExcel = () => {
    if (loading) return <p>Loading...</p>;
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
 

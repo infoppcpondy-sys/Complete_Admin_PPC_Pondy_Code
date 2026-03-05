@@ -12,6 +12,7 @@ import { MdDeleteForever } from "react-icons/md";
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { Table } from "react-bootstrap";
+import AccessDenied from '../components/AccessDenied';
 
 function AdminSetForm() {
   const [formData, setFormData] = useState({

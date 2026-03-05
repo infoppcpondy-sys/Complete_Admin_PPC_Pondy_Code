@@ -2,7 +2,7 @@
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import moment from 'moment';
-import { Routes, Route, Router } from 'react-router-dom';
+import { Routes, Route, Router, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from "./Navbar";
 import LoginReport from "./LoginReport";
@@ -177,6 +177,7 @@ import UpLoadDetailAds from './UploadDetailAds';
 import CallExperienceList from './GetCalledExpirence';
 import SummaryDashboard from './Subscriber';
 import PropertyPaymentDailyReport from './PropertyPaymentDailyReport';
+import SingleSendMessage from './SingleSendMessage';
 
 
 const routes = [
@@ -352,14 +353,33 @@ const routes = [
                                 { path: "/sale-property", element: < SalePropertyViewsUser /> },
                                 { path: "/daily-report", element: < SummaryDashboard /> },
                                 { path: "/payment-daily-report", element: < PropertyPaymentDailyReport /> },
+                                { path: "/whatsapp-send", element: < SingleSendMessage /> },
 
 
 ];
 
 
 const Dashboard = () => {
-
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // ✅ AUTHENTICATION CHECK - Prevent URL Bypass
+  useEffect(() => {
+    const isAuthenticated = localStorage.getItem('isAuthenticated');
+    const adminName = localStorage.getItem('adminName');
+    const otpVerified = localStorage.getItem('otpVerified');
+
+    // If ANY required value is missing or not 'true' → redirect to login
+    if (!isAuthenticated || isAuthenticated !== 'true' || 
+        !adminName || 
+        !otpVerified || otpVerified !== 'true') {
+      
+      console.warn('🔒 Unauthorized access attempt - Redirecting to login');
+      localStorage.clear(); // Clear any fake/corrupted data
+      navigate('/process/admin', { replace: true });
+      return;
+    }
+  }, [navigate]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev);

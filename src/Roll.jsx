@@ -10,6 +10,7 @@ import { FaEdit } from "react-icons/fa";
 import { MdDeleteForever } from "react-icons/md";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import AccessDenied from "./components/AccessDenied";
 
 const Roll = () => {
   const [rolls, setRolls] = useState([]);
@@ -161,11 +162,7 @@ const Roll = () => {
 
   if (loading) return <p>Loading...</p>;
   if (!allowedRoles.includes(fileName)) {
-    return (
-      <div className="text-center text-red-500 font-semibold text-lg mt-10">
-        Only admin is allowed to view this file.
-      </div>
-    );
+    return <AccessDenied userRole={adminRole} fileName={fileName} />;
   }
 
   return (

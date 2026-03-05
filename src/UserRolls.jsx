@@ -33,9 +33,29 @@ const roles = ["admin", "manager", "accountant"];
 
 const RolesPermissionTable = () => {
   const [rolePermissions, setRolePermissions] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
  
 
   useEffect(() => {
+    // Fetch available roles from the API
+    const fetchRoles = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/available-roles`);
+        if (response.data.success && response.data.data.length > 0) {
+          setAvailableRoles(response.data.data);
+        } else {
+          // Fallback to default roles if API fails or returns empty
+          setAvailableRoles(['admin', 'manager', 'accountant']);
+        }
+      } catch (err) {
+        console.error('Error fetching roles:', err);
+        // Fallback to default roles
+        setAvailableRoles(['admin', 'manager', 'accountant']);
+      }
+    };
+
+    fetchRoles();
+    
     const savedPermissions = localStorage.getItem("rolePermissions");
     if (savedPermissions) {
       setRolePermissions(JSON.parse(savedPermissions));
@@ -117,7 +137,7 @@ const RolesPermissionTable = () => {
       <thead className="sticky-top">
           <tr>
             <th className="border px-4 py-2 text-left">Files/Pages</th>
-            {roles.map(role => (
+            {availableRoles.map(role => (
               <th key={role} className="border px-4 py-2 text-center capitalize">
                 {role === "admin" ? (
                   <div>
@@ -138,7 +158,7 @@ const RolesPermissionTable = () => {
           {allFiles.map((file, idx) => (
             <tr key={idx} className="even:bg-gray-50">
               <td className="border px-4 py-2">{file}</td>
-              {roles.map(role => (
+              {availableRoles.map(role => (
                 <td key={role} className="border px-4 py-2 text-center">
                   <input
                     type="checkbox"

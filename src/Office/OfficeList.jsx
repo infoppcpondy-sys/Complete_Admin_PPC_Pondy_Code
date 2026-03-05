@@ -12,6 +12,7 @@ import { MdDeleteForever } from 'react-icons/md';
 import { useSelector } from 'react-redux';
 import moment from 'moment';
 import { Table } from 'react-bootstrap';
+import AccessDenied from '../components/AccessDenied';
 
 const OfficeForm = ({ office, onSave }) => {
   const [formData, setFormData] = useState({
@@ -118,11 +119,7 @@ const OfficeForm = ({ office, onSave }) => {
    if (loading) return <p>Loading...</p>;
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
 

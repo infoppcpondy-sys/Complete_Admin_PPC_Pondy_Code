@@ -9,6 +9,7 @@ import { Table, Form, Button,Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaEdit, FaEye } from "react-icons/fa";
 import { MdDeleteForever } from "react-icons/md";
+import AccessDenied from './components/AccessDenied';
 
 const PreApprovedCar = () => {
   const [properties, setProperties] = useState([]);
@@ -467,11 +468,7 @@ const handlePermanentDelete = async (ppcId) => {
      if (loading) return <p>Loading...</p>;
     
      if (!allowedRoles.includes(fileName)) {
-       return (
-         <div className="text-center text-red-500 font-semibold text-lg mt-10">
-           Only admin is allowed to view this file.
-         </div>
-       );
+       return <AccessDenied userRole={adminRole} fileName={fileName} />;
      }
 
   return (

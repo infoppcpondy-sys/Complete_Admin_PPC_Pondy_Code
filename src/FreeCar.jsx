@@ -19,6 +19,7 @@ import { useSelector } from "react-redux";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 import { Table } from "react-bootstrap";
+import AccessDenied from './components/AccessDenied';
 
 const FreePlansWithProperties = () => {
   const [data, setData] = useState([]);
@@ -241,11 +242,7 @@ const handleSearch = () => {
    if (loading) return <p>Loading...</p>;
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
   if (loading) return <p>Loading...</p>;

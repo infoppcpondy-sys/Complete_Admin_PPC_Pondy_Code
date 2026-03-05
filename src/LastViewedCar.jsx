@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
+import AccessDenied from './components/AccessDenied';
 
 const AllLastViewedProperties = () => {
   const [views, setViews] = useState([]);
@@ -202,11 +203,7 @@ const AllLastViewedProperties = () => {
   
   
    if (!allowedRoles.includes(fileName)) {
-     return (
-       <div className="text-center text-red-500 font-semibold text-lg mt-10">
-         Only admin is allowed to view this file.
-       </div>
-     );
+     return <AccessDenied userRole={adminRole} fileName={fileName} />;
    }
 
 

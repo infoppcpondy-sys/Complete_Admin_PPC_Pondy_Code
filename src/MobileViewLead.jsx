@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import AccessDenied from './components/AccessDenied';
 const MobileViewLeadTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
@@ -93,11 +94,7 @@ const MobileViewLeadTable = () => {
      if (loading) return <p>Loading...</p>;
     
      if (!allowedRoles.includes(fileName)) {
-       return (
-         <div className="text-center text-red-500 font-semibold text-lg mt-10">
-           Only admin is allowed to view this file.
-         </div>
-       );
+       return <AccessDenied userRole={adminRole} fileName={fileName} />;
      }
 
   return (

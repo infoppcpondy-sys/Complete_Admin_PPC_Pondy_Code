@@ -25,6 +25,7 @@ import { ImageLoadingOverlay, VideoLoadingOverlay } from './utils/LoadingOverlay
 import { toWords } from 'number-to-words';
 import { FcSearch } from "react-icons/fc";
 import { toast } from "react-toastify";
+import { PropertyUploadSection } from './components/PropertyUploadSection';
 
 
 function AddProperty() {
@@ -1562,190 +1563,20 @@ if (!allowedRoles.includes(fileName)) {
         <p className="p-3" style={{ color: "white", backgroundColor: "rgb(47,116,127)" }}>PPC-ID: {ppcId}</p>
 
 
-                        <h4 style={{ color: "rgb(47,116,127)", fontWeight: "bold", marginBottom: "10px" }}> Property Images  </h4>
-
-<div className="form-group photo-upload-container mt-2">
-  <input
-    type="file"
-    multiple
-    accept="image/*"
-    onChange={handlePhotoUpload}
-    name="photos"
-    id="photo-upload"
-    className="photo-upload-input"
-    style={{ display: 'none' }} // Hide the input field
-  />
-  <label htmlFor="photo-upload" className="photo-upload-label fw-normal m-0">
-    <MdAddPhotoAlternate
-      style={{
-        color: 'white',
-        backgroundColor: '#2e86e4',
-        padding: '5px',
-        fontSize: '30px',
-        borderRadius: '50%',
-        marginRight: '5px',
-      }}
-    />
-    Upload Your Property Images
-  </label>
-</div>
-
-        {photos.length > 0 && (
-          <div className="uploaded-photos">
-            <h4>Uploaded Photos</h4>
-            <div className="uploaded-photos-grid">
-              {photos.map((photo, index) => (
-                <div 
-                  key={index} 
-                  className={`uploaded-photo-item ${selectedPhotoIndex === index ? 'default-photo' : ''}`}
-                  role="group"
-                  aria-label={`Photo ${index + 1}${selectedPhotoIndex === index ? ' (Default Property Image)' : ''}`}
-                  style={{ position: 'relative' }}
-                >
-                  <div 
-                    style={{ position: 'relative', display: 'inline-block', cursor: 'pointer', width: '100%' }}
-                    onClick={() => handlePhotoSelect(index)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        handlePhotoSelect(index);
-                      }
-                    }}
-                  >
-                    <img
-                      src={URL.createObjectURL(photo)}
-                      alt={`Property photo ${index + 1}${selectedPhotoIndex === index ? ' - Default' : ''}`}
-                      className="uploaded-photo mb-3"
-                      title={selectedPhotoIndex === index ? 'Default Property Image - Click to change' : 'Click to set as default'}
-                      style={{ display: 'block', width: '100%' }}
-                    />
-                    {processingPhotoIndices.includes(index) && (
-                      <ImageLoadingOverlay visible={true} progress={photoProgress[index] || 0} />
-                    )}
-                    
-                    {/* Default Photo Badge with Checkmark - Positioned at bottom-right */}
-                    {selectedPhotoIndex === index && (
-                      <div 
-                        style={{
-                          position: 'absolute',
-                          bottom: '8px',
-                          right: '8px',
-                          backgroundColor: '#4CAF50',
-                          color: 'white',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '20px',
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                          zIndex: 10
-                        }}
-                        aria-hidden="false"
-                        role="status"
-                        aria-label="This is the default property image"
-                      >
-                        ✓
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Photo Status Label */}
-                  <div className="photo-label-text" style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#2F747F', fontWeight: 'bold' }}>
-                    {selectedPhotoIndex === index ? '⭐ Default Photo' : 'Photo'}
-                  </div>
-                  
-                  {/* Remove Photo Button - Now positioned at top-right */}
-                  <button
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      border: 'none',
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      borderRadius: '50%',
-                      width: '36px',
-                      height: '36px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      zIndex: 20,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                      padding: '0'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // prevent removal while processing
-                      if (processingPhotoIndices.includes(index)) return;
-                      removePhoto(index);
-                    }}
-                    aria-label={`Remove photo ${index + 1}`}
-                    title="Remove this photo"
-                  >
-                    <IoCloseCircle size={24} color="#F22952"/>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Video Upload Section */}
-        <h4 style={{ color: "rgb(47,116,127)", fontWeight: "bold", marginBottom: "10px" }}>Property Video</h4>
-        <div className="form-group">
-          <input
-            type="file"
-            name="video"
-            accept="video/*"
-            id="videoUpload"
-            onChange={handleVideoChange}
-            className="d-none"
-          />
-          <label htmlFor="videoUpload" className="file-upload-label fw-normal">
-            <span className="pt-5">
-              <FaFileVideo
-                style={{
-                  color: 'white',
-                  backgroundColor: '#2e86e4',
-                  padding: '5px',
-                  fontSize: '30px',
-                  marginRight: '5px',
-                }}
-              />
-              Upload Property Video
-            </span>
-          </label>
-
-          {/* Display the selected video */}
-    {videos.length > 0 && (
-    <div className="selected-video-container mt-3">
-      <h5 className="text-start">Selected Videos:</h5>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {videos.map((video, index) => (
-          <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
-            <video width="200" height="200" controls>
-              <source src={URL.createObjectURL(video)} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-                {processingVideoIndices.includes(index) && <VideoLoadingOverlay visible={true} progress={videoProgress[index] || 0} />}
-            <Button
-              variant="danger"
-              onClick={() => removeVideo(index)}
-              style={{ border: 'none', background: "transparent" }}
-              className="position-absolute top-0 end-0 m-1 p-1"
-            >
-              <IoCloseCircle size={20} color="#F22952" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )}
-        </div>
+        <PropertyUploadSection
+          photos={photos}
+          processingPhotoIndices={processingPhotoIndices}
+          photoProgress={photoProgress}
+          selectedPhotoIndex={selectedPhotoIndex}
+          handlePhotoUpload={handlePhotoUpload}
+          removePhoto={removePhoto}
+          handlePhotoSelect={handlePhotoSelect}
+          videos={videos}
+          processingVideoIndices={processingVideoIndices}
+          videoProgress={videoProgress}
+          handleVideoChange={handleVideoChange}
+          removeVideo={removeVideo}
+        />
 
 
  

@@ -23,12 +23,63 @@ const UserForm = ({ user, onSave, onDelete }) => {
         userType: ''
     });
 
+    const [availableRoles, setAvailableRoles] = useState([]);
+
+    // Fetch available roles on component mount
+    useEffect(() => {
+        const fetchRoles = async () => {
+            try {
+                const response = await axios.get(`${process.env.REACT_APP_API_URL}/available-roles`);
+                if (response.data.success) {
+                    setAvailableRoles(response.data.data);
+                } else {
+                    setAvailableRoles(['manager', 'admin', 'accountant']);
+                }
+            } catch (err) {
+                console.error('Error fetching roles:', err);
+                setAvailableRoles(['manager', 'admin', 'accountant']);
+            }
+        };
+
+        fetchRoles();
+    }, []);
+
     // Update formData when user prop is passed (for update scenario)
     useEffect(() => {
         if (user) {
             setFormData(user);
+        } else {
+            // Reset form when creating new user
+            setFormData({
+                name: '',
+                address: '',
+                office: '',
+                jobType: '',
+                targetWeek: '',
+                targetMonth: '',
+                mobile: '',
+                aadhaarNumber: '',
+                userName: '',
+                password: '',
+                role: '',
+                userType: ''
+            });
         }
+        // Refetch roles whenever the form is shown (create or edit)
+        fetchRolesFunc();
     }, [user]);
+
+    // Helper function to fetch roles
+    const fetchRolesFunc = async () => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL}/available-roles`);
+            if (response.data.success) {
+                setAvailableRoles(response.data.data);
+            }
+        } catch (err) {
+            console.error('Error fetching roles:', err);
+        }
+    };
 
     // Handle input changes
     const handleChange = (e) => {
@@ -52,6 +103,8 @@ const UserForm = ({ user, onSave, onDelete }) => {
         })
         .catch(err => console.error('Error fetching user:', err));
     }
+    // Refetch roles when user changes (form is shown)
+    fetchRolesFunc();
   }, [user]);
 
  
@@ -205,9 +258,19 @@ const UserForm = ({ user, onSave, onDelete }) => {
                             required
                         >
                            <option value="">Select Roll</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                            <option value="accountant">Accountant</option>
+                            {availableRoles.length > 0 ? (
+                                availableRoles.map((role) => (
+                                    <option key={role} value={role.toLowerCase()}>
+                                        {role}
+                                    </option>
+                                ))
+                            ) : (
+                                <>
+                                    <option value="manager">Manager</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="accountant">Accountant</option>
+                                </>
+                            )}
                         </select>
                     </div>
                 </div>
@@ -255,6 +318,7 @@ const UserForm = ({ user, onSave, onDelete }) => {
 const UserList = () => {
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Fetch all users on component mount
     useEffect(() => {
@@ -280,6 +344,11 @@ const UserList = () => {
         setSelectedUser(null);
         // Refetch users after deletion
         axios.get(`${process.env.REACT_APP_API_URL}/admin-all`).then(response => setUsers(response.data));
+    };
+
+    const handleCreateNewUser = () => {
+        setSelectedUser(null);
+        setRefreshTrigger(prev => prev + 1); // Trigger role refresh
     };
   const tableRef = useRef();
 
@@ -310,9 +379,14 @@ const UserList = () => {
             <h1 style={{color:"rgb(47,116,127)"}} className='text-center mb-4'>User Management</h1>
             <UserForm user={selectedUser} onSave={handleSave} onDelete={handleDelete} />
             <h2>Staff Details</h2>
-            <button className="btn btn-secondary mb-3" style={{background:"tomato"}} onClick={handlePrint}>
-  Print
-</button>
+            <div className="mb-3">
+                <button className="btn btn-secondary me-2" style={{background:"tomato"}} onClick={handlePrint}>
+                    Print
+                </button>
+                <button className="btn btn-success" onClick={handleCreateNewUser}>
+                    + Create New User
+                </button>
+            </div>
             <div ref={tableRef}>
             <Table striped bordered hover responsive className="table-sm align-middle">
             <thead className="sticky-top">

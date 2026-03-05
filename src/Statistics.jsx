@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { Container, Row, Col, Card } from 'react-bootstrap';
 import { FaCar, FaCheckCircle, FaTrashAlt, FaClock, FaHandsHelping, FaUsers, FaGlobe, FaMobileAlt, FaEye, FaPhone, FaHeart, FaMobile, FaEyeSlash } from 'react-icons/fa';
 import { GiWorld } from "react-icons/gi";
+import AccessDenied from "./components/AccessDenied";
 
 
 const Statistics = () => {
@@ -268,11 +269,7 @@ useEffect(() => {
 if (loading) return <p>Loading...</p>;
 
 if (!allowedRoles.includes(fileName)) {
-  return (
-    <div className="text-center text-red-500 font-semibold text-lg mt-10">
-      Only admin is allowed to view this file.
-    </div>
-  );
+  return <AccessDenied userRole={adminRole} fileName={fileName} />;
 }
 
 

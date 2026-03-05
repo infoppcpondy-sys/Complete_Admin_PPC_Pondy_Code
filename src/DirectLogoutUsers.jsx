@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import AccessDenied from './components/AccessDenied';
 
 const DirectLogoutUsers = () => {
   const [phoneInput, setPhoneInput] = useState("");
@@ -121,11 +122,7 @@ const DirectLogoutUsers = () => {
 
   if (loading) return <p>Loading...</p>;
   if (!allowedRoles.includes(fileName)) {
-    return (
-      <div className="text-center text-danger fw-bold mt-5">
-        Only admin is allowed to view this file.
-      </div>
-    );
+    return <AccessDenied userRole={adminRole} fileName={fileName} />;
   }
 
   return (
