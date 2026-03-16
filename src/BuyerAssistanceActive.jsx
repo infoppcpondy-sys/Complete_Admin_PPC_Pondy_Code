@@ -144,7 +144,7 @@ const handleEdit = (ba_id) => {
 };
 
 const handleEditBill = (ba_id) => {
-  navigate(`/dashboard/edit-bill/${ba_id}`);
+  navigate(`/dashboard/edit-buyer-bill/${ba_id}`);
 };
 
 
