@@ -647,6 +647,42 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 Expired Assistant
               </NavLink>
             </li>
+
+<li className="p-0 mt-2">
+              <NavLink
+                to="/dashboard/all-buyer-bills"
+                className={({ isActive }) =>
+                  isActive ? "active-link rounded" : ""
+                }
+              >
+                <FaFileAlt />
+                Get All Buyer Office Bills
+              </NavLink>
+            </li>
+
+            <li className="p-0 mt-2">
+              <NavLink
+                to="/dashboard/ba-free-bills"
+                className={({ isActive }) =>
+                  isActive ? "active-link rounded" : ""
+                }
+              >
+                <FaFileAlt />
+                Buyer Free Office Bills
+              </NavLink>
+            </li>
+            <li className="p-0 mt-2">
+              <NavLink
+                to="/dashboard/ba-paid-bills"
+                className={({ isActive }) =>
+                  isActive ? "active-link rounded" : ""
+                }
+              >
+                <FaFileAlt />
+                Buyer Paid Office Bills
+              </NavLink>
+            </li>
+
           </ul>
 
           <li
@@ -1363,7 +1399,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 Buyer Assistant Pay Later
               </NavLink>
             </li>
-            <li className="p-0 mt-2">
+            {/* <li className="p-0 mt-2">
               <NavLink
                 to="/dashboard/all-buyer-bills"
                 className={({ isActive }) =>
@@ -1396,7 +1432,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <FaFileAlt />
                 BA Paid Bills
               </NavLink>
-            </li>
+            </li> */}
           </ul>
 
           <li
