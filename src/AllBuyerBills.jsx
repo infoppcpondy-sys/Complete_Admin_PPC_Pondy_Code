@@ -142,7 +142,7 @@ const filteredBills = bills.filter((bill) => {
              <button className="btn btn-secondary mb-3 mt-3" style={{background:"tomato"}} onClick={handlePrint}>
   Print
 </button>
-      <h2 className="mb-3">All Buyer Assistant Bills</h2>
+      <h2 className="mb-3">All Buyer Assistant Office Bills (Free & Paid)</h2>
   <div ref={tableRef}>       
    <Table striped bordered hover responsive className="table-sm align-middle">
                <thead className="sticky-top">
