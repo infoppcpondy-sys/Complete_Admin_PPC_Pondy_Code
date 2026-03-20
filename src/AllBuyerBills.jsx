@@ -156,6 +156,7 @@ const filteredBills = bills.filter((bill) => {
               <th>ba_id</th>
               <th>Owner Phone</th>
               <th>Payment Type</th>
+              <th>Plan Type</th>
               <th>Plan Name</th>
               <th>Bill Amount</th>
               <th>Validity (days)</th>
@@ -186,6 +187,7 @@ const filteredBills = bills.filter((bill) => {
                   <td>{bill.ba_id}</td>
                   <td>{bill.ownerPhone}</td>
                   <td>{bill.paymentType}</td>
+                  <td>{bill.paymentType === 'Free' ? 'Free' : 'Paid'}</td>
                   <td>{bill.planName}</td>
                   <td>{bill.billAmount}</td>
                   <td>{bill.validity}</td>
