@@ -15,6 +15,7 @@ const [filters, setFilters] = useState({
   ba_id: "",
   billNo: "",
   planName: "",
+  paymentType: "",
   planExpiryDate: "", // Format: "YYYY-MM-DD"
 });
   const navigate = useNavigate();
@@ -220,6 +221,15 @@ const handleUndoDelete = async (ba_id) => {
   </div>
   <div className="col">
     <input
+      type="text"
+      className="form-control"
+      placeholder="Filter by Payment Type"
+      value={filters.paymentType}
+      onChange={(e) => setFilters({ ...filters, paymentType: e.target.value })}
+    />
+  </div>
+  <div className="col">
+    <input
       type="date"
       className="form-control"
       value={filters.planExpiryDate}
@@ -234,6 +244,7 @@ const handleUndoDelete = async (ba_id) => {
           ba_id: "",
           billNo: "",
           planName: "",
+          paymentType: "",
           planExpiryDate: "",
         })
       }
@@ -246,7 +257,7 @@ const handleUndoDelete = async (ba_id) => {
   Print
 </button>
 
-      <h2 className="mb-4 text-center">Ba Paid Bills Datas</h2>
+      <h2 className="mb-4 text-center">Buyer Paid Office Bills Data</h2>
       <div ref={tableRef}>
       <Table striped bordered hover responsive className="table-sm align-middle">
         <thead className="sticky-top">
@@ -259,6 +270,7 @@ const handleUndoDelete = async (ba_id) => {
             <th>Property Mode</th>
             <th>Property Type</th>
             <th>Status</th>
+            <th>Payment Type</th>
             <th>Created By</th>
             <th>Created At</th>
             <th>Updated At</th>
@@ -279,11 +291,12 @@ const handleUndoDelete = async (ba_id) => {
     const matchesBaId = String(prop.ba_id || "").toLowerCase().includes(filters.ba_id.toLowerCase());
     const matchesBillNo = item.bill.billNo?.toLowerCase().includes(filters.billNo.toLowerCase());
     const matchesPlanName = item.bill.planName?.toLowerCase().includes(filters.planName.toLowerCase());
+    const matchesPaymentType = item.bill.paymentType?.toLowerCase().includes(filters.paymentType.toLowerCase());
     const matchesExpiryDate = filters.planExpiryDate
       ? moment(item.bill.planExpiryDate).format("YYYY-MM-DD") === filters.planExpiryDate
       : true;
 
-    return matchesBaId && matchesBillNo && matchesPlanName && matchesExpiryDate;
+    return matchesBaId && matchesBillNo && matchesPlanName && matchesPaymentType && matchesExpiryDate;
   })
   .map((item, i) => {
     const prop = item.buyerAssistance;
@@ -309,6 +322,7 @@ const handleUndoDelete = async (ba_id) => {
         <td>{prop.propertyMode}</td>
         <td>{prop.propertyType}</td>
         <td>{prop.ba_status}</td>
+        <td><strong>{item.bill.paymentType}</strong></td>
         <td>{prop.ba_postBy}</td>
         <td>{moment(prop.createdAt).format("YYYY-MM-DD HH:mm")}</td>
         <td>{moment(prop.updatedAt).format("YYYY-MM-DD HH:mm")}</td>

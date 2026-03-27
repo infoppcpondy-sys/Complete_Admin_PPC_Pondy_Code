@@ -348,7 +348,6 @@ const routes = [
                                 { path: "/daily-report", element: < SummaryDashboard /> },
                                 { path: "/payment-daily-report", element: < PropertyPaymentDailyReport /> },
 
-
 ];
 
 

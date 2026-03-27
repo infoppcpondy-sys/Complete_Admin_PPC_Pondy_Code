@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 const EditBuyerBill = () => {
   const { ba_id } = useParams(); // ✅ Get ppcId from URL
@@ -29,6 +30,10 @@ const EditBuyerBill = () => {
   const [message, setMessage] = useState('');
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [plans, setPlans] = useState([]);
+
+  // Get admin name from Redux or localStorage
+  const reduxAdminName = useSelector((state) => state.admin?.name);
+  const adminName = reduxAdminName || localStorage.getItem("adminName") || "Unknown";
 
   // Fetch bill data on mount
   useEffect(() => {
@@ -80,19 +85,31 @@ const navigate = useNavigate();
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.put(`${process.env.REACT_APP_API_URL}/buyer-update-bill/${ba_id}`, billData);
+      // Include adminName in the request body so backend can track who edited
+      const updateData = {
+        ...billData,
+        adminName: adminName
+      };
+
+      const res = await axios.put(`${process.env.REACT_APP_API_URL}/buyer-update-bill/${ba_id}`, updateData);
       if (res.data.success) {
-        setMessage('Bill updated successfully!');
+        setMessage('✅ Bill updated successfully!');
+        // Refresh bill data to show updated values
+        const refreshRes = await axios.get(`${process.env.REACT_APP_API_URL}/buyer-get-bill/${ba_id}`);
+        if (refreshRes.data.success) {
+          setBillData(refreshRes.data.data);
+        }
       } else {
-        setMessage('Failed to update bill.');
+        setMessage('❌ Failed to update bill.');
       }
     } catch (err) {
-      setMessage('Server error while updating bill.');
+      setMessage(`❌ Server error: ${err.response?.data?.message || err.message}`);
+      console.error('Update error:', err);
     }
     setLoading(false);
-   setTimeout(() => {
+    setTimeout(() => {
       navigate(-1);
-    }, 3000);
+    }, 2000);
   };
 
   return (

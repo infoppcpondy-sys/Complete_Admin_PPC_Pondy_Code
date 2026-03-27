@@ -23,12 +23,31 @@ const UserForm = ({ user, onSave, onDelete }) => {
         userType: ''
     });
 
+    // State for dynamic roles
+    const [dynamicRoles, setDynamicRoles] = useState([]);
+    const [rolesLoading, setRolesLoading] = useState(true);
+
     // Update formData when user prop is passed (for update scenario)
     useEffect(() => {
         if (user) {
             setFormData(user);
         }
     }, [user]);
+
+    // Fetch dynamic roles from API on component mount
+    useEffect(() => {
+        const fetchRoles = async () => {
+            try {
+                const res = await axios.get(`${process.env.REACT_APP_API_URL}/roll-all`);
+                setDynamicRoles(res.data.map((r) => r.rollType));
+            } catch (err) {
+                console.error("Error fetching roles:", err);
+            } finally {
+                setRolesLoading(false);
+            }
+        };
+        fetchRoles();
+    }, []);
 
     // Handle input changes
     const handleChange = (e) => {
@@ -203,11 +222,14 @@ const UserForm = ({ user, onSave, onDelete }) => {
                             value={formData.role}
                             onChange={handleChange}
                             required
+                            disabled={rolesLoading}
                         >
-                           <option value="">Select Roll</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                            <option value="accountant">Accountant</option>
+                           <option value="">
+                               {rolesLoading ? 'Loading roles...' : 'Select Roll'}
+                           </option>
+                            {dynamicRoles.map((role) => (
+                                <option key={role} value={role}>{role}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
