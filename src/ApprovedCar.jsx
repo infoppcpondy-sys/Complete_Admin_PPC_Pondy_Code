@@ -32,6 +32,11 @@ const ApprovedCar = () => {
   const [showMoveToModal, setShowMoveToModal] = useState(false);
   const [selectedPropertyForMove, setSelectedPropertyForMove] = useState(null);
 
+  // ── NEW: lookup map built from /fetch-all-free-plans ─────────────────────
+  // Shape: { [ppcId]: { billNo: string, billType: string } }
+  const [freePlansBillMap, setFreePlansBillMap] = useState({});
+  // ─────────────────────────────────────────────────────────────────────────
+
   const navigate = useNavigate();
   const mapRef = useRef(null);
 
@@ -58,6 +63,53 @@ const ApprovedCar = () => {
     };
     fetchPendingProperties();
   }, []);
+
+  // ── NEW: fetch free plans once and build ppcId → bill info map ────────────
+  useEffect(() => {
+    const fetchAllBillData = async () => {
+      try {
+        // Fetch both paid and free plans in parallel
+        const [paidRes, freeRes] = await Promise.all([
+          axios.get(`${process.env.REACT_APP_API_URL}/fetch-all-paid-plans`),
+          axios.get(`${process.env.REACT_APP_API_URL}/fetch-all-free-plans`),
+        ]);
+
+        const paidData = paidRes.data.data || [];
+        const freeData = freeRes.data.data || [];
+
+        // Merge both into one map: { [ppcId]: { billNo, billType } }
+        // Both endpoints share the same shape:
+        // [ { user: { billNo, ... }, properties: [ { ppcId, ... } ] }, ... ]
+     // Merge both into one map: { [ppcId]: { billNo, billType, planName, planType } }
+const map = {};
+
+// Tag each dataset with its payment type before merging
+const taggedPaid = paidData.map((item) => ({ ...item, _paymentType: "Paid" }));
+const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
+
+[...taggedPaid, ...taggedFree].forEach((item) => {
+  const billNo = item.user?.billNo || "";
+  const billType = billNo.startsWith("RP")
+    ? "Office Bill"
+    : billNo
+    ? "Online Bill"
+    : "";
+  const planName = item.user?.planName || "";
+  const planType = item._paymentType; // "Paid" or "Free"
+
+  (item.properties || []).forEach((property) => {
+    if (property.ppcId) {
+      map[String(property.ppcId)] = { billNo, billType, planName, planType };
+    }
+  });
+});
+
+        setFreePlansBillMap(map);
+      } catch (err) {}
+    };
+    fetchAllBillData();
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const tableRef = useRef();
 
@@ -918,6 +970,8 @@ const ApprovedCar = () => {
               <th>Set PPCID Status</th>
               <th>Set PPCID Assigned Date</th>
               <th>Set PPCID Assigned PhoneNumber</th>
+              <th>Bill No</th>
+              <th>Bill Type</th>
               <th>Plan Name</th>
               <th>Plan Type</th>
               <th>Plan Created</th>
@@ -943,205 +997,155 @@ const ApprovedCar = () => {
               <th>Print </th>
             </tr>
           </thead>
-          <tbody>
+                    <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="25" className="text-center">
+                <td colSpan="45" className="text-center">
                   No properties found.
                 </td>
               </tr>
             ) : (
-              filtered.map((prop, idx) => (
-                <tr
-                  key={prop._id}
-                  className={prop.isDeleted ? "table-danger" : ""}
-                >
-                  <td>{idx + 1}</td>
-                  <td>
-                    <img
-                      src={
-                        prop.photos && prop.photos.length > 0
-                          ? `http://localhost:5006/${prop.photos[0]}`
-                          : "https://d17r9yv50dox9q.cloudfront.net/car_gallery/default.jpg"
-                      }
-                      alt="Property"
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </td>
-                  <td
-                    className="sticky-col sticky-col-1"
-                    style={{
-                      cursor: "pointer",
-                    }}
-                    onClick={() =>
-                      navigate("/dashboard/detail", {
-                        state: {
-                          ppcId: prop.ppcId,
-                          phoneNumber: prop.phoneNumber,
-                        },
-                      })
-                    }
-                  >
-                    {prop.ppcId}
-                  </td>
-                  <td>
-                    <FaEye /> {prop.views}
-                  </td>
-                  <td
-                    className={`sticky-col sticky-col-2 ${
-                      prop.otpStatus !== "verified" || !prop.isVerifiedUser
-                        ? "text-danger"
-                        : ""
-                    }`}
-                  >
-                    {prop.phoneNumber}
-                  </td>
-                  <td>{prop.otpStatus}</td>
-                  <td>{prop.isVerifiedUser ? "True" : "False"}</td>
-                  <td>{prop.propertyType}</td>
-                  <td>{prop.propertyMode}</td>
-                  <td>{prop.price}</td>
-                  <td>{prop.city}</td>
-                  <td>{prop.createdBy}</td>
-                  <td>{new Date(prop.createdAt).toLocaleDateString()}</td>
-                  <td>{new Date(prop.updatedAt).toLocaleDateString()}</td>
-                  <td>{prop.required}</td>
-                  <td>{prop.status}</td>
-                  <td>{prop.setPpcId ? "True" : "False"}</td>
-                  <td>{prop.assignedPhoneNumber || "N/A"}</td>
-                  <td>
-                    {prop.setPpcIdAssignedAt
-                      ? new Date(prop.setPpcIdAssignedAt).toLocaleDateString()
-                      : "N/A"}
-                  </td>
+              filtered.map((prop, idx) => {
+                const freeBillInfo = freePlansBillMap[String(prop.ppcId)] || {};
+                const resolvedBillNo = freeBillInfo.billNo || prop.bill_number || "N/A";
+                const resolvedBillType = freeBillInfo.billType || prop.billing_type || "N/A";
+                const resolvedPlanName = freeBillInfo.planName || prop.planName || "N/A";
+                const resolvedPlanType = freeBillInfo.planType || prop.packageType || "N/A";
 
-                  <td>{prop.planName}</td>
-                  <td>{prop.packageType}</td>
-                  <td>{new Date(prop.planCreatedAt).toLocaleDateString()}</td>
-                  <td>{prop.planExpiryDate}</td>
-                  <td>{prop.paymentData?.payustatususer}</td>
-                  <td>{prop.paymentData?.txnid}</td>
-                  <td>{prop.paymentData?.amount}</td>
-                  <td>{prop.paymentData?.firstname}</td>
-                  <td>{prop.paymentData?.email}</td>
-                  <td>{prop.paymentData?.payUdate}</td>
-                  <td>{prop.deletionReason || "-"}</td>
-                  <td>
-                    {prop.deletionDate
-                      ? new Date(prop.deletionDate).toLocaleString()
-                      : "-"}
-                  </td>
-                  <td>
-                    {prop.isDeleted ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleUndo(prop.ppcId)}
-                      >
-                        Undo
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="info"
-                          size="sm"
-                          className="ms-2"
-                          onClick={() =>
-                            navigate("/dashboard/edit-property", {
-                              state: {
-                                ppcId: prop.ppcId,
-                                phoneNumber: prop.phoneNumber,
-                              },
-                            })
-                          }
-                        >
-                          <FaEdit />
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          className="ms-2 mt-2"
-                          onClick={() =>
-                            handleDeleteClick(prop.ppcId, prop.phoneNumber)
-                          }
-                        >
-                          <MdDeleteForever />
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => handlePermanentDelete(prop.ppcId)}
-                        >
-                          <MdDeleteForever /> Permanent
-                        </Button>
-                      </>
-                    )}
-                  </td>
-
-                  <td>
-                    <button
-                      className="text-primary"
-                      onClick={() => handleCreateBill("Bill", prop.ppcId)}
-                    >
-                      Edit Bill
-                    </button>
-                  </td>
-                  <td>{prop.featureStatus}</td>
-                  <td>
-                    <Button
-                      variant="info"
-                      size="sm"
-                      onClick={() => handleMoveToClick(prop)}
-                    >
-                      Move To
-                    </Button>
-                  </td>
-                  <td>
-                    <Button
-                      variant={
-                        prop.featureStatus === "yes" ? "danger" : "success"
-                      }
-                      size="sm"
+                return (
+                  <tr key={prop._id} className={prop.isDeleted ? "table-danger" : ""}>
+                    <td>{idx + 1}</td>
+                    <td>
+                      <img
+                        src={
+                          prop.photos?.[0]
+                            ? `https://ppcpondy.com/PPC/${prop.photos[0].replace(/\\/g, "/")}`
+                            : "https://d17r9yv50dox9q.cloudfront.net/car_gallery/default.jpg"
+                        }
+                        alt="Property"
+                        style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                      />
+                    </td>
+                    <td
+                      className="sticky-col sticky-col-1"
+                      style={{ cursor: "pointer" }}
                       onClick={() =>
-                        handleFeatureStatusChange(
-                          prop.ppcId,
-                          prop.featureStatus,
-                        )
+                        navigate("/dashboard/detail", {
+                          state: { ppcId: prop.ppcId, phoneNumber: prop.phoneNumber },
+                        })
                       }
                     >
-                      {prop.featureStatus === "yes"
-                        ? "Set to No"
-                        : "Set to Yes"}
-                    </Button>
-                  </td>
-                  <td>{prop.followUpAdminName}</td>
-                  <td>{prop.billDate}</td>
-                  <td>{prop.validity}</td>
-                  <td>{prop.billExpiryDate}</td>
-                  <td>
-                    {" "}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="ms-2"
-                      onClick={() => handlePrint(prop)}
+                      {prop.ppcId}
+                    </td>
+                    <td>
+                      <FaEye /> {prop.views}
+                    </td>
+                    <td
+                      className={`sticky-col sticky-col-2 ${
+                        prop.otpStatus !== "verified" || !prop.isVerifiedUser ? "text-danger" : ""
+                      }`}
                     >
-                      Print
-                    </Button>
-                  </td>
-                </tr>
-              ))
+                      {prop.phoneNumber}
+                    </td>
+                    <td>{prop.otpStatus}</td>
+                    <td>{prop.isVerifiedUser ? "True" : "False"}</td>
+                    <td>{prop.propertyType}</td>
+                    <td>{prop.propertyMode}</td>
+                    <td>{prop.price}</td>
+                    <td>{prop.city}</td>
+                    <td>{prop.createdBy}</td>
+                    <td>{prop.createdAt ? new Date(prop.createdAt).toLocaleDateString() : ""}</td>
+                    <td>{prop.updatedAt ? new Date(prop.updatedAt).toLocaleDateString() : ""}</td>
+                    <td>{prop.required}</td>
+                    <td>{prop.status}</td>
+                    <td>{prop.setPpcId ? "True" : "False"}</td>
+                    <td>{prop.setPpcIdAssignedAt ? new Date(prop.setPpcIdAssignedAt).toLocaleDateString() : "N/A"}</td>
+                    <td>{prop.assignedPhoneNumber || "N/A"}</td>
+
+                    <td>{resolvedBillNo}</td>
+                    <td>{resolvedBillType}</td>
+                    <td>{resolvedPlanName}</td>
+                    <td>{resolvedPlanType}</td>
+                    <td>{prop.planCreatedAt ? new Date(prop.planCreatedAt).toLocaleDateString() : ""}</td>
+                    <td>{prop.planExpiryDate}</td>
+                    <td>{prop.paymentData?.payustatususer}</td>
+                    <td>{prop.paymentData?.txnid}</td>
+                    <td>{prop.paymentData?.amount}</td>
+                    <td>{prop.paymentData?.firstname}</td>
+                    <td>{prop.paymentData?.email}</td>
+                    <td>{prop.paymentData?.payUdate}</td>
+                    <td>{prop.deletionReason || "-"}</td>
+                    <td>{prop.deletionDate ? new Date(prop.deletionDate).toLocaleString() : "-"}</td>
+                    <td>
+                      {prop.isDeleted ? (
+                        <Button variant="secondary" size="sm" onClick={() => handleUndo(prop.ppcId)}>
+                          Undo
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            variant="info"
+                            size="sm"
+                            className="ms-2"
+                            onClick={() =>
+                              navigate("/dashboard/edit-property", {
+                                state: { ppcId: prop.ppcId, phoneNumber: prop.phoneNumber },
+                              })
+                            }
+                          >
+                            <FaEdit />
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="ms-2 mt-2"
+                            onClick={() => handleDeleteClick(prop.ppcId, prop.phoneNumber)}
+                          >
+                            <MdDeleteForever />
+                          </Button>
+                          <Button variant="danger" size="sm" className="mt-2" onClick={() => handlePermanentDelete(prop.ppcId)}>
+                            <MdDeleteForever /> Permanent
+                          </Button>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      <button className="text-primary" onClick={() => handleCreateBill("Bill", prop.ppcId)}>
+                        Edit Bill
+                      </button>
+                    </td>
+                    <td>{prop.featureStatus}</td>
+                    <td>
+                      <Button variant="info" size="sm" onClick={() => handleMoveToClick(prop)}>
+                        Move To
+                      </Button>
+                    </td>
+                    <td>
+                      <Button
+                        variant={prop.featureStatus === "yes" ? "danger" : "success"}
+                        size="sm"
+                        onClick={() => handleFeatureStatusChange(prop.ppcId, prop.featureStatus)}
+                      >
+                        {prop.featureStatus === "yes" ? "Set to No" : "Set to Yes"}
+                      </Button>
+                    </td>
+                    <td>{prop.followUpAdminName}</td>
+                    <td>{prop.billDate}</td>
+                    <td>{prop.validity}</td>
+                    <td>{prop.billExpiryDate}</td>
+                    <td>
+                      <Button variant="secondary" size="sm" className="ms-2" onClick={() => handlePrint(prop)}>
+                        Print
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>
       </div>
-
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Deletion</Modal.Title>

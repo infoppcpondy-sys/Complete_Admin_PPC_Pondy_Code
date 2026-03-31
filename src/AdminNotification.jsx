@@ -112,20 +112,36 @@ const NotificationsTable = () => {
     indexOfLastItem,
   );
 
-  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+  // Pagination logic: show only 10 page numbers at a time
+  const pageSet = Math.floor((currentPage - 1) / 10);
+  const startPage = pageSet * 10 + 1;
+  const endPage = Math.min(startPage + 9, totalPages);
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
+  };
+  const handleNextSet = () => {
+    if (endPage < totalPages) setCurrentPage(endPage + 1);
+  };
+  const handlePrevSet = () => {
+    if (startPage > 1) setCurrentPage(startPage - 1);
+  };
 
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div className="container">
+    <div className="container d-flex flex-column align-items-center justify-content-center">
       {/* Filter Form */}
       <div
         style={{
           boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
           padding: "20px",
           backgroundColor: "#fff",
+          maxWidth: 1200,
+          width: "100%",
+          margin: "0 auto",
         }}
-        className="d-flex flex-row gap-2 align-items-center flex-nowrap"
+        className="d-flex flex-row gap-2 align-items-center flex-wrap justify-content-center"
       >
         <div className="mb-3">
           <label className="form-label fw-bold">Filter by Status</label>
@@ -203,7 +219,8 @@ const NotificationsTable = () => {
           bordered
           hover
           responsive
-          className="table-sm align-middle"
+          className="table-sm align-middle mx-auto"
+          style={{ maxWidth: 1200, width: "100%" }}
         >
           <thead className="sticky-top">
             <tr>
@@ -239,31 +256,32 @@ const NotificationsTable = () => {
       </div>
       {/* Pagination */}
       <div className="pagination mt-3">
-        <button
-          className="btn btn-primary me-1"
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </button>
-
-        {Array.from({ length: totalPages }, (_, index) => (
+        <div className="d-flex justify-content-center">
           <button
-            key={index}
-            className={`btn btn-secondary me-1 ${currentPage === index + 1 ? "active" : ""}`}
-            onClick={() => handlePageChange(index + 1)}
+            className="btn btn-primary me-1"
+            onClick={handlePrevSet}
+            disabled={startPage === 1}
           >
-            {index + 1}
+            Previous
           </button>
-        ))}
-
-        <button
-          className="btn btn-primary"
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </button>
+          {Array.from({ length: endPage - startPage + 1 }, (_, idx) => (
+            <button
+              key={startPage + idx}
+              className={`btn btn-secondary me-1 ${currentPage === startPage + idx ? "active" : ""}`}
+              onClick={() => handlePageChange(startPage + idx)}
+            >
+              {startPage + idx}
+            </button>
+          ))}
+          {endPage < totalPages && <span className="mx-2">...</span>}
+          <button
+            className="btn btn-primary"
+            onClick={handleNextSet}
+            disabled={endPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
