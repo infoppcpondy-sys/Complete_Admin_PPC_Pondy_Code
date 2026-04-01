@@ -2703,8 +2703,7 @@ onClick={() => removePhoto(index)}>
       <label className="m-0">
         <select
           name="countryCode"
-          value={"+91"}
-      readOnly
+          value={formData.countryCode || "+91"}
           onChange={handleFieldChange}
           className="form-control m-0"
           style={{ width: '100%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
@@ -2723,6 +2722,7 @@ onClick={() => removePhoto(index)}>
       type="number"
       name="phoneNumber"
       value={formData.phoneNumber}
+      onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="Phone Number"
       style={{ flex: '1 0 80%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
