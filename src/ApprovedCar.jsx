@@ -20,6 +20,7 @@ const ApprovedCar = () => {
   const [currentPhoneNumber, setCurrentPhoneNumber] = useState("");
   const [deletionReason, setDeletionReason] = useState("");
   const [phoneNumberSearch, setPhoneNumberSearch] = useState("");
+  const [pincodeSearch, setPincodeSearch] = useState("");
   const [featureStatusFilter, setFeatureStatusFilter] = useState("");
 
   const [sortOption, setSortOption] = useState("");
@@ -154,6 +155,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
       "Property Mode": prop.propertyMode || "",
       Price: prop.price || "",
       City: prop.city || "",
+      Pincode: prop.pinCode || "",
       CreatedBy: prop.createdBy || "",
       "Created At": prop.createdAt
         ? new Date(prop.createdAt).toLocaleDateString()
@@ -230,6 +232,16 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
       const query = phoneNumberSearch.trim().toLowerCase();
       result = result.filter((prop) =>
         String(prop.phoneNumber || "")
+          .toLowerCase()
+          .includes(query),
+      );
+    }
+
+    // Pincode Search
+    if (pincodeSearch.trim()) {
+      const query = pincodeSearch.trim().toLowerCase();
+      result = result.filter((prop) =>
+        String(prop.pinCode || "")
           .toLowerCase()
           .includes(query),
       );
@@ -336,6 +348,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
     properties,
     ppcIdSearch,
     phoneNumberSearch,
+    pincodeSearch,
     startDate,
     endDate,
     featureStatusFilter,
@@ -351,6 +364,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
   const handleReset = () => {
     setPpcIdSearch("");
     setPhoneNumberSearch("");
+    setPincodeSearch("");
 
     setStartDate("");
     setEndDate("");
@@ -829,6 +843,14 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
           />
         </div>
         <div className="col-md-3">
+          <Form.Control
+            type="text"
+            placeholder="Search by Pincode"
+            value={pincodeSearch}
+            onChange={(e) => setPincodeSearch(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3">
           <select
             value={featureStatusFilter}
             onChange={(e) => setFeatureStatusFilter(e.target.value)}
@@ -962,6 +984,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
               <th>Property Mode</th>
               <th>Price</th>
               <th>City</th>
+              <th>Pincode</th>
               <th>CreatedBy</th>
               <th>Created At</th>
               <th>Updated At</th>
@@ -1053,6 +1076,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
                     <td>{prop.propertyMode}</td>
                     <td>{prop.price}</td>
                     <td>{prop.city}</td>
+                    <td>{prop.pinCode || ""}</td>
                     <td>{prop.createdBy}</td>
                     <td>{prop.createdAt ? new Date(prop.createdAt).toLocaleDateString() : ""}</td>
                     <td>{prop.updatedAt ? new Date(prop.updatedAt).toLocaleDateString() : ""}</td>

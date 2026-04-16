@@ -1284,6 +1284,8 @@ function AddProperty() {
     "salesType",
     "postedBy",
     "phoneNumber",
+    "area",
+    "pinCode",
   ];
 
   const nonDropdownFields = [
