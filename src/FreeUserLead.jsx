@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { Button, Table } from "react-bootstrap";
 import { MdDeleteForever } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import PhoneCell from "./components/PhoneCell";
 
 const UserLeadStatsTable = () => {
   const [properties, setProperties] = useState([]);
@@ -254,7 +255,7 @@ const filteredData = properties.filter((item) => {
       {filteredData.map((prop, index) => (
         <tr key={`${prop.ppcId}-${index}`}>
           <td>{index + 1}</td>
-          <td>{prop.ownerPhone}</td>
+          <td><PhoneCell phone={prop.ownerPhone} type="any" /></td>
           <td style={{cursor: "pointer"}}
             onClick={() =>
                               navigate(`/dashboard/detail`, {

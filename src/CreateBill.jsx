@@ -93,7 +93,7 @@ const CreateBill = () => {
   }, [adminName, adminRole]);
   
   const location = useLocation();
-  const { ppcId ,phoneNumber} = location.state || {};
+  const { ppcId ,phoneNumber, bulkMode, items: bulkItems, bulkCount} = location.state || {};
   
 
   useEffect(() => {
@@ -168,6 +168,41 @@ const CreateBill = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ── Bulk mode: apply these bill details to every supplied property ──
+    if (bulkMode) {
+      const itemsToSend = Array.isArray(bulkItems) ? bulkItems : [];
+      if (itemsToSend.length === 0) {
+        alert("No properties to bill.");
+        return;
+      }
+      const ok = window.confirm(
+        `Create bills for ${itemsToSend.length} propert${itemsToSend.length === 1 ? "y" : "ies"} and move them to Active (Approved)?\n\nProperties that already have a bill will be skipped.`
+      );
+      if (!ok) return;
+      setLoading(true);
+      try {
+        const res = await axios.post(`${process.env.REACT_APP_API_URL}/create-bill-bulk`, {
+          items: itemsToSend,
+          billData,
+        });
+        if (res.data?.success) {
+          const { createdCount = 0, skippedCount = 0, fromBillNo, toBillNo } = res.data;
+          const range = fromBillNo ? (toBillNo && toBillNo !== fromBillNo ? `${fromBillNo} – ${toBillNo}` : fromBillNo) : "";
+          alert(`Bulk bill complete.\nCreated: ${createdCount}${range ? ` (${range})` : ""}\nSkipped (already billed): ${skippedCount}\nThese properties are now Active (Approved).`);
+          setTimeout(() => navigate("/dashboard/approved-car"), 1500);
+        } else {
+          alert(res.data?.message || "Bulk bill failed.");
+        }
+      } catch (err) {
+        alert("Failed to create bulk bills!\n" + (err.response?.data?.message || err.message));
+        console.error("Bulk bill error:", err);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await axios.post(`${process.env.REACT_APP_API_URL}/create-bill`, billData);
@@ -264,6 +299,11 @@ const CreateBill = () => {
       {message && <div style={{ marginBottom: '10px', color: 'green' }}>{message}</div>}
 
       <form onSubmit={handleSubmit}>
+        {bulkMode && (
+          <div style={{ marginBottom: '15px', padding: '12px 15px', background: '#fff8e1', border: '1px solid #f0ad4e', borderRadius: '6px', color: '#7a5b00', fontWeight: 'bold' }}>
+            🧾 Bulk Bill — these details will be applied to {bulkCount ?? (bulkItems ? bulkItems.length : 0)} bulk-uploaded propert{(bulkCount ?? (bulkItems ? bulkItems.length : 0)) === 1 ? 'y' : 'ies'}. A unique bill number is generated per property; properties that already have a bill are skipped. Each billed property becomes Active (Approved).
+          </div>
+        )}
 
         <div className="form-group">
           <label>Admin Office</label>
@@ -305,15 +345,25 @@ const CreateBill = () => {
 
         </div>
 
-        <div className="form-group">
-          <label>PP ID</label>
-          <input type="text" name="ppId" value={billData.ppId} onChange={handleChange} className="form-control" required />
-        </div>
+        {bulkMode ? (
+          <div className="form-group">
+            <label>Bulk Upload Count</label>
+            <input type="text" value={`${bulkCount ?? (bulkItems ? bulkItems.length : 0)} properties`} disabled className="form-control" />
+            <small style={{ color: '#6c757d' }}>PP ID &amp; owner phone are taken from each selected property automatically.</small>
+          </div>
+        ) : (
+          <>
+            <div className="form-group">
+              <label>PP ID</label>
+              <input type="text" name="ppId" value={billData.ppId} onChange={handleChange} className="form-control" required />
+            </div>
 
-        <div className="form-group">
-          <label>Owner Phone</label>
-          <input type="text" name="ownerPhone" value={billData.ownerPhone} onChange={handleChange} className="form-control" required />
-        </div>
+            <div className="form-group">
+              <label>Owner Phone</label>
+              <input type="text" name="ownerPhone" value={billData.ownerPhone} onChange={handleChange} className="form-control" required />
+            </div>
+          </>
+        )}
 
         <div className="form-group">
           <label>Payment Type</label>
@@ -343,11 +393,16 @@ const CreateBill = () => {
             required
           >
             <option value="">Select Plan</option>
-            {plans.map((plan, index) => (
-              <option key={index} value={plan.name.trim()}>
-                {plan.name.trim()}
-              </option>
-            ))}
+            {/* Admin-only "Free" plan for billing. Not part of the plans data,
+                so it never appears in the user-side app. */}
+            <option value="Free">Free</option>
+            {plans
+              .filter((plan) => plan?.name?.trim?.().toLowerCase() !== 'free')
+              .map((plan, index) => (
+                <option key={index} value={plan.name.trim()}>
+                  {plan.name.trim()}
+                </option>
+              ))}
           </select>
         </div>
 
@@ -393,7 +448,7 @@ const CreateBill = () => {
         </div>
 
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Creating Bill...' : 'Create Bill'}
+          {loading ? (bulkMode ? 'Creating Bills...' : 'Creating Bill...') : (bulkMode ? 'Create Bulk Bills' : 'Create Bill')}
         </button>
       </form>
     </div>

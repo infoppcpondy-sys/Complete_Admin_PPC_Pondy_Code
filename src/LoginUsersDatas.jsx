@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import PhoneCell from "./components/PhoneCell";
 
 const LoginUserDatas = () => {
   const [data, setData] = useState([]);
@@ -176,7 +177,7 @@ const LoginUserDatas = () => {
                       aria-expanded={expandedPhones[user.phone]}
                     >
                       <div className="d-flex justify-content-between w-100">
-                        <span className="fw-bold">Phone: {user.phone}</span>
+                        <span className="fw-bold">Phone: <PhoneCell phone={user.phone} type="any" /></span>
                         <span className="badge bg-secondary ms-2">
                           {user.activity.length} days
                         </span>

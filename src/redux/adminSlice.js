@@ -6,7 +6,6 @@ const adminSlice = createSlice({
   initialState: {
     name: '',
     role: '',
-    userType: '',
     isVerified: false,
   },
   reducers: {
@@ -16,31 +15,22 @@ const adminSlice = createSlice({
     setRole: (state, action) => {
       state.role = action.payload;
     },
-    setUserType: (state, action) => {
-      state.userType = action.payload;
-    },
     setIsVerified: (state, action) => {
       state.isVerified = action.payload;
     },
     setAdminData: (state, action) => {
-      const { name, role, userType, isVerified } = action.payload;
+      const { name, role, isVerified } = action.payload;
       state.name = name;
       state.role = role;
-      state.userType = userType;
       state.isVerified = isVerified;
 
     },
   },
 });
 
-export const { setName, setRole, setUserType, setIsVerified, setAdminData } = adminSlice.actions;
+export const { setName, setRole, setIsVerified, setAdminData } = adminSlice.actions;
 export default adminSlice.reducer;
 
 
 
 // // localStorage.setItem('adminData', JSON.stringify(action.payload));
-
-
-
-
-

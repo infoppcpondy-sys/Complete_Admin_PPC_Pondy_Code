@@ -5,15 +5,34 @@ import { useLocation , useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import moment from "moment";
 
+// Today's date in `YYYY-MM-DD` shape for the `<input type="date">` default.
+const todayDateString = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// Combine a YYYY-MM-DD date with the current local time-of-day. The recorded
+// followupDate is the user's chosen day + the actual save moment.
+const combineWithCurrentTime = (dateStr) => {
+  if (!dateStr) return "";
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${dateStr}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+};
+
 function CreateFollowUp() {
+  // Pre-fill the date with today; user can change to schedule a future day.
+  // The time portion is appended at submit so it reflects the actual save.
   const [formData, setFormData] = useState({
     followupStatus: "",
     followupType: "",
-    followupDate: "",
+    followupDate: todayDateString(),
+    remarks: "",
   });
 
   const location = useLocation();
-  const { ppcId, phoneNumber } = location.state || {};
+  const { ppcId, phoneNumber, bulkMode, items: bulkItems, bulkCount } = location.state || {};
 
 
   const reduxAdminName = useSelector((state) => state.admin.name);
@@ -57,11 +76,44 @@ function CreateFollowUp() {
 
    const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ── Bulk mode: apply this follow-up once to every supplied property ──
+    if (bulkMode) {
+      const itemsToSend = Array.isArray(bulkItems) ? bulkItems : [];
+      if (itemsToSend.length === 0) {
+        alert("No properties to follow up on.");
+        return;
+      }
+      try {
+        const res = await axios.post(
+          `${process.env.REACT_APP_API_URL}/followup-bulk-create`,
+          {
+            items: itemsToSend,
+            followupStatus: formData.followupStatus,
+            followupType: formData.followupType,
+            followupDate: combineWithCurrentTime(formData.followupDate),
+            adminName,
+            remarks: formData.remarks,
+          }
+        );
+        const { createdCount = 0, skippedCount = 0 } = res.data || {};
+        alert(`Bulk follow-up complete.\nCreated: ${createdCount}\nSkipped (already had a follow-up): ${skippedCount}`);
+        setTimeout(() => navigate(-1), 1500);
+      } catch (err) {
+        alert("Failed to create bulk follow-ups!\n" + (err.response?.data?.message || err.message));
+        console.error("Bulk follow-up error:", err);
+      }
+      return;
+    }
+
     try {
       const payload = {
         ppcId,
         phoneNumber,
         ...formData,
+        // The user picked the date; append the current time at submit so the
+        // saved followupDate is the chosen day + actual save moment.
+        followupDate: combineWithCurrentTime(formData.followupDate),
         adminName,
       };
 
@@ -86,15 +138,27 @@ function CreateFollowUp() {
   
   return (
     <form onSubmit={handleSubmit}>
-      <div>
-        <label>PPC ID:</label>
-        <input type="text" value={ppcId || "N/A"} disabled />
-      </div>
+      {bulkMode ? (
+        <div>
+          <label>Bulk Upload Count:</label>
+          <input type="text" value={`${bulkCount ?? (bulkItems ? bulkItems.length : 0)} properties`} disabled />
+          <div style={{ color: "#888", fontSize: "12px" }}>
+            This follow-up is created once for each property (any that already have one are skipped).
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <label>PPC ID:</label>
+            <input type="text" value={ppcId || "N/A"} disabled />
+          </div>
 
-      <div>
-        <label>Phone Number:</label>
-        <input type="text" value={phoneNumber || "N/A"} disabled />
-      </div>
+          <div>
+            <label>Phone Number:</label>
+            <input type="text" value={phoneNumber || "N/A"} disabled />
+          </div>
+        </>
+      )}
 
       <div>
         <label>Follow-up Status:</label>
@@ -119,16 +183,35 @@ function CreateFollowUp() {
       </div>
 
       <div>
-        <label>Follow-up Date:</label>
+        <label>
+          Follow-up Date{" "}
+          <span style={{ color: "#888", fontSize: "12px" }}>
+            (time auto-captured at save)
+          </span>
+          :
+        </label>
+        {/* User picks the date; the time is appended at submit. */}
         <input
           type="date"
           name="followupDate"
+          value={formData.followupDate}
           onChange={handleInputChange}
           required
         />
       </div>
 
-      <button type="submit">Create Follow-up</button>
+      <div>
+        <label>Remark:</label>
+        <textarea
+          name="remarks"
+          placeholder="Enter remark (optional)"
+          value={formData.remarks}
+          onChange={handleInputChange}
+          rows={3}
+        />
+      </div>
+
+      <button type="submit">{bulkMode ? "Create Bulk Follow-ups" : "Create Follow-up"}</button>
     </form>
   );
 }

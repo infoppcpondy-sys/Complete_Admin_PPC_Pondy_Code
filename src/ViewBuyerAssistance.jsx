@@ -13,6 +13,7 @@ import { LuCalendarDays } from "react-icons/lu";
 import imge from "./Assets/xd_profile1.png"
 import axios from "axios";
 import { CgProfile } from "react-icons/cg";
+import PhoneCell from "./components/PhoneCell";
 
 export default function ViewBuyerAssistance() {
     const location = useLocation();
@@ -370,7 +371,7 @@ const handleSendInterest = async (id) => {   // ✅ receive id (not _id)
           Buyer Phone Number
         </h6>
         <span className="card-text" style={{ color: "#1D1D1D", fontWeight: "500" }}>
-          {requestData?.phoneNumber || "N/A"}
+          <PhoneCell phone={requestData?.phoneNumber} display={requestData?.phoneNumber || "N/A"} type="tenant" ba_id={requestData?.ba_id} />
         </span>
       </div>
     </div>

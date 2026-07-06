@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import PhoneCell from "./components/PhoneCell";
 
 const LoginDirectVerifyUser = () => {
   const [phoneInput, setPhoneInput] = useState("");
@@ -149,7 +150,7 @@ const LoginDirectVerifyUser = () => {
                 users.map((user, index) => (
                   <tr key={user._id}>
                     <td>{index + 1}</td>
-                    <td>{user.phone}</td>
+                    <td><PhoneCell phone={user.phone} type="any" /></td>
                     <td>{user.otpStatus || '—'}</td>
                     <td>{user.directVerified ? "Yes" : "No"}</td>
                     <td>{user.verifiedBy || '—'}</td>
@@ -188,7 +189,7 @@ const LoginDirectVerifyUser = () => {
                 unverifiedUsers.map((user, index) => (
                   <tr key={user._id}>
                     <td>{index + 1}</td>
-                    <td>{user.phone}</td>
+                    <td><PhoneCell phone={user.phone} type="any" /></td>
                     <td>{new Date(user.deletedDate).toLocaleString()}</td>
                     <td>{user.unverifiedBy || '—'}</td>
                   </tr>

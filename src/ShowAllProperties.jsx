@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import moment from 'moment';
+import PhoneCell from './components/PhoneCell';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -317,7 +318,7 @@ const PropertyStatusTable = () => {
                     >
                       {item.ppcId}
                     </td>
-                    <td>{item.phoneNumber}</td>
+                    <td><PhoneCell phone={item.phoneNumber} type="owner" ppcId={item.ppcId} /></td>
                     <td>
                       <span
                         style={{

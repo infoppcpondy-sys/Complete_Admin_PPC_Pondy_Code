@@ -3,6 +3,7 @@ import axios from "axios";
 import { Table, Container } from "react-bootstrap";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerAssistance = () => {
   const [buyerRequests, setBuyerRequests] = useState([]);
@@ -69,7 +70,7 @@ useEffect(() => {
             buyerRequests.map((request) => (
               <tr key={request._id}>
                  <td>{request.ba_id}</td>
-                 <td>{request.phoneNumber}</td>
+                 <td><PhoneCell phone={request.phoneNumber} type="tenant" ba_id={request.ba_id} /></td>
                  <td>{request.city}</td>
                 <td>{request.area}</td>
                 <td>{request.minPrice}</td>

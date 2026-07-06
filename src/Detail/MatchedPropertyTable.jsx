@@ -33,6 +33,10 @@ const MatchedDataTable = () => {
   const [message, setMessage] = useState(null);
   const [filters, setFilters] = useState({
     propertyId: "",
+    ownerContact: "",
+    buyerId: "",
+    buyerName: "",
+    buyerPhone: "",
     startDate: "",
     endDate: "",
   });
@@ -111,7 +115,7 @@ const MatchedDataTable = () => {
     setLoading(true);
     try {
       const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/fetch-all-matched-datas`,
+        `${process.env.REACT_APP_API_URL}/get-matched-buyers-properties`,
       );
       if (res.data.success) {
         setMatchedData(res.data.data);
@@ -147,17 +151,26 @@ const MatchedDataTable = () => {
     printWindow.document.close();
     printWindow.print();
   };
+  // Case-insensitive "contains" helper for the text filters.
+  const has = (val, q) =>
+    q ? String(val ?? "").toLowerCase().includes(q.toLowerCase()) : true;
+
   const applyFilters = () => {
     return filteredData
+      // Buyer-level filters — drop the whole card if the buyer doesn't match.
+      .filter((item) => {
+        const card = item.buyerAssistanceCard || {};
+        return (
+          has(card.Ba_Id, filters.buyerId) &&
+          has(card.name, filters.buyerName) &&
+          has(card.phoneNumber, filters.buyerPhone)
+        );
+      })
+      // Property-level filters — keep only the matching properties.
       .map((item) => {
         const matched = item.matchedProperties.filter((property) => {
-          const matchesId = filters.propertyId
-            ? property.propertyId &&
-              property.propertyId
-                .toString()
-                .toLowerCase()
-                .includes(filters.propertyId.toLowerCase())
-            : true;
+          const matchesId = has(property.propertyId, filters.propertyId);
+          const matchesOwner = has(property.postedByUser, filters.ownerContact);
 
           const createdDate = new Date(property.createdAt);
           const startMatch = filters.startDate
@@ -167,7 +180,7 @@ const MatchedDataTable = () => {
             ? createdDate <= new Date(filters.endDate)
             : true;
 
-          return matchesId && startMatch && endMatch;
+          return matchesId && matchesOwner && startMatch && endMatch;
         });
 
         return { ...item, matchedProperties: matched };
@@ -176,7 +189,15 @@ const MatchedDataTable = () => {
   };
 
   const handleResetFilters = () => {
-    setFilters({ propertyId: "", startDate: "", endDate: "" });
+    setFilters({
+      propertyId: "",
+      ownerContact: "",
+      buyerId: "",
+      buyerName: "",
+      buyerPhone: "",
+      startDate: "",
+      endDate: "",
+    });
   };
 
   // -------------- PDF EXPORT ----------------
@@ -201,6 +222,8 @@ const MatchedDataTable = () => {
       "BA PHONE",
       "BA AREA",
       "BA CITY",
+      "Buyer Budget",
+      "Buyer BHK",
       "Status",
     ];
 
@@ -226,6 +249,10 @@ const MatchedDataTable = () => {
           item.buyerAssistanceCard.phoneNumber || "N/A",
           item.buyerAssistanceCard.area || "N/A",
           item.buyerAssistanceCard.city || "N/A",
+          `${formatPrice(item.buyerAssistanceCard.minPrice)} - ${formatPrice(
+            item.buyerAssistanceCard.maxPrice,
+          )}`,
+          item.buyerAssistanceCard.bedrooms || "-",
           property.isDeleted ? "Deleted" : "Active",
         ]);
       });
@@ -271,6 +298,10 @@ const MatchedDataTable = () => {
           "BA PHONE": item.buyerAssistanceCard.phoneNumber || "N/A",
           "BA AREA": item.buyerAssistanceCard.area || "N/A",
           "BA CITY": item.buyerAssistanceCard.city || "N/A",
+          "Buyer Budget": `${formatPrice(
+            item.buyerAssistanceCard.minPrice,
+          )} - ${formatPrice(item.buyerAssistanceCard.maxPrice)}`,
+          "Buyer BHK": item.buyerAssistanceCard.bedrooms || "-",
           Status: property.isDeleted ? "Deleted" : "Active",
         });
       });
@@ -344,7 +375,15 @@ const MatchedDataTable = () => {
   }
 
   return (
-    <div className="container mt-4">
+    <div className="container-fluid mt-4 px-4">
+      {/* Keep the header section and the table on the same left edge, and
+          stop the table-header cells from wrapping unevenly. */}
+      <style>{`
+        .matched-table thead th {
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+      `}</style>
       <h2 className="mb-3">Matched Buyer Requests & Properties</h2>
       {message && (
         <div className="alert alert-info" role="alert">
@@ -353,15 +392,60 @@ const MatchedDataTable = () => {
       )}
 
       <div className="mb-4 p-3 border rounded bg-light">
-        <div className="d-flex gap-3 mb-3">
+        <div className="d-flex gap-3 mb-3 flex-wrap">
           <input
             type="text"
-            placeholder="Search Property ID"
+            placeholder="Search PPC ID"
             value={filters.propertyId}
             onChange={(e) =>
               setFilters({ ...filters, propertyId: e.target.value })
             }
             className="form-control"
+            style={{ flex: "1 1 180px" }}
+          />
+
+          <input
+            type="text"
+            placeholder="Search Owner Contact"
+            value={filters.ownerContact}
+            onChange={(e) =>
+              setFilters({ ...filters, ownerContact: e.target.value })
+            }
+            className="form-control"
+            style={{ flex: "1 1 180px" }}
+          />
+
+          <input
+            type="text"
+            placeholder="Search Buyer ID"
+            value={filters.buyerId}
+            onChange={(e) =>
+              setFilters({ ...filters, buyerId: e.target.value })
+            }
+            className="form-control"
+            style={{ flex: "1 1 180px" }}
+          />
+
+          <input
+            type="text"
+            placeholder="Search Buyer Name"
+            value={filters.buyerName}
+            onChange={(e) =>
+              setFilters({ ...filters, buyerName: e.target.value })
+            }
+            className="form-control"
+            style={{ flex: "1 1 180px" }}
+          />
+
+          <input
+            type="text"
+            placeholder="Search Buyer Contact"
+            value={filters.buyerPhone}
+            onChange={(e) =>
+              setFilters({ ...filters, buyerPhone: e.target.value })
+            }
+            className="form-control"
+            style={{ flex: "1 1 180px" }}
           />
 
           <input
@@ -371,6 +455,7 @@ const MatchedDataTable = () => {
               setFilters({ ...filters, startDate: e.target.value })
             }
             className="form-control"
+            style={{ flex: "1 1 160px" }}
           />
 
           <input
@@ -380,6 +465,7 @@ const MatchedDataTable = () => {
               setFilters({ ...filters, endDate: e.target.value })
             }
             className="form-control"
+            style={{ flex: "1 1 160px" }}
           />
 
           <button onClick={handleResetFilters} className="btn btn-secondary">
@@ -413,18 +499,18 @@ const MatchedDataTable = () => {
           bordered
           hover
           responsive
-          className="table-sm align-middle"
+          className="table-sm align-middle matched-table"
         >
           <thead className="sticky-top">
             <tr>
               <th>
-                <FaIdBadge className="me-1" /> Property ID
+                <FaIdBadge className="me-1" /> PPC ID
               </th>
               <th>
                 <FaUser className="me-1" /> Posted By
               </th>
               <th>
-                <FaPhone className="me-1" /> Contact
+                <FaPhone className="me-1" /> Owner Contact
               </th>
               <th>
                 <FaMoneyBillWave className="me-1" /> Price
@@ -442,13 +528,13 @@ const MatchedDataTable = () => {
                 <FaCalendarAlt className="me-1" /> Posted On
               </th>
               <th>
-                <FaIdBadge className="me-1" /> BA_ID
+                <FaIdBadge className="me-1" /> Buyer ID
               </th>
               <th>
-                <FaUserTag className="me-1" /> BA_NAME
+                <FaUserTag className="me-1" /> Buyer Name
               </th>
               <th>
-                <FaPhone className="me-1" /> BA PHONE
+                <FaPhone className="me-1" /> Buyer Contact
               </th>
               <th>
                 <FaMapMarkerAlt className="me-1" /> BA AREA
@@ -456,9 +542,15 @@ const MatchedDataTable = () => {
               <th>
                 <FaMapMarkerAlt className="me-1" /> BA CITY
               </th>
+              <th>
+                <FaMoneyBillWave className="me-1" /> Buyer Budget
+              </th>
+              <th>Buyer BHK</th>
+              {/* Columns commented out per request:
               <th>Status</th>
               <th>Action</th>
               <th>Views Details</th>
+              */}
             </tr>
           </thead>
           <tbody>
@@ -504,6 +596,12 @@ const MatchedDataTable = () => {
                   </td>
                   <td>{item.buyerAssistanceCard.area || "N/A"}</td>
                   <td>{item.buyerAssistanceCard.city || "N/A"}</td>
+                  <td className="text-nowrap">
+                    {formatPrice(item.buyerAssistanceCard.minPrice)} –{" "}
+                    {formatPrice(item.buyerAssistanceCard.maxPrice)}
+                  </td>
+                  <td>{item.buyerAssistanceCard.bedrooms || "-"}</td>
+                  {/* Status / Action / Views Details columns commented out per request
                   <td>
                     {property.isDeleted ? (
                       <Badge bg="danger" className="d-flex align-items-center">
@@ -557,6 +655,7 @@ const MatchedDataTable = () => {
                       View Details
                     </Button>
                   </td>
+                  */}
                 </tr>
               )),
             )}

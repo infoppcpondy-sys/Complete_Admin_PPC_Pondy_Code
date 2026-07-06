@@ -10,6 +10,7 @@ import { MdDeleteForever } from "react-icons/md";
 
 // excel utilities
 import * as XLSX from "xlsx";
+import PhoneCell from "./components/PhoneCell";
 import { saveAs } from "file-saver";
 
 const AddPropertyList = () => {
@@ -681,7 +682,7 @@ const AddPropertyList = () => {
                         : ""
                     }`}
                   >
-                    {property.phoneNumber}
+                    <PhoneCell phone={property.phoneNumber} type="owner" ppcId={property.ppcId} />
                   </td>
                   <td>{property.otpStatus}</td>
                   <td>{property.isVerifiedUser ? "True" : "False"}</td>

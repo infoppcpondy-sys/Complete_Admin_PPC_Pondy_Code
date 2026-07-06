@@ -177,14 +177,19 @@ const navigate = useNavigate();
   required
 >
   <option value="">Select Plan</option>
-  {plans.map((plan, index) => {
-    const name = plan?.planName?.trim?.(); // <- using plan.planName
-    return (
-      <option key={index} value={name || ''}>
-        {name || 'Unnamed Plan'}
-      </option>
-    );
-  })}
+  {/* Admin-only "Free" plan for billing. Not part of the plans data,
+      so it never appears in the user-side app. */}
+  <option value="Free">Free</option>
+  {plans
+    .filter((plan) => plan?.planName?.trim?.().toLowerCase() !== 'free')
+    .map((plan, index) => {
+      const name = plan?.planName?.trim?.(); // <- using plan.planName
+      return (
+        <option key={index} value={name || ''}>
+          {name || 'Unnamed Plan'}
+        </option>
+      );
+    })}
 </select>
 </div>
 

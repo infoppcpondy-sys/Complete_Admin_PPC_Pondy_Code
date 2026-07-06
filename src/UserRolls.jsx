@@ -25,6 +25,8 @@ const ALL_FILES = [
   { key: "Users Log", label: "Login User Views Pages", section: "Report" },
   { key: "Login Separate User", label: "Login Datas Separate Users", section: "Report" },
   { key: "Admin Report", label: "Admin Report", section: "Report" },
+  { key: "PPC Staff Report", label: "PPC Staff Report", section: "Report" },
+  { key: "Download History", label: "Download History", section: "Report" },
 
   // Login Direct
   { key: "Login Verify Directly", label: "Direct Login User", section: "Login Direct" },
@@ -55,18 +57,21 @@ const ALL_FILES = [
 
   // Buyer Assistant
   { key: "Add Buyer Assistance", label: "Add Buyers Assistance", section: "Buyer Assistant" },
-  { key: "Get Buyer Assistances", label: "Get Buyers Assistance", section: "Buyer Assistant" },
-  { key: "Buyer Active Assistant", label: "Buyer Active Assistant", section: "Buyer Assistant" },
-  { key: "Pending Assistant", label: "Pending Assistant", section: "Buyer Assistant" },
+  { key: "Get Buyer Assistances", label: "Manage All Buyer Assistance", section: "Buyer Assistant" },
+  { key: "Buyer Active Assistant", label: "Approved - Buyer Assistance", section: "Buyer Assistant" },
+  { key: "Pending Assistant", label: "Pending - Buyer Assistance", section: "Buyer Assistant" },
   { key: "Buyer Assistant Viewed", label: "Buyer Assistant Viewed User", section: "Buyer Assistant" },
   { key: "Expired Assistant", label: "Expired Assistant", section: "Buyer Assistant" },
+  { key: "Removed Buyer Assistant", label: "Removed Buyer Assistant", section: "Buyer Assistant" },
   { key: "All Buyer Bills", label: "Get All Buyer Office Bills", section: "Buyer Assistant" },
   { key: "BaFree Bills", label: "Buyer Free Office Bills", section: "Buyer Assistant" },
   { key: "BaPaid Bill", label: "Buyer Paid Office Bills", section: "Buyer Assistant" },
 
   // PPC Property
   { key: "Search Property", label: "Search Property", section: "PPC Property" },
+  { key: "Pricing Info", label: "Pricing Info", section: "PPC Property" },
   { key: "Add Property", label: "Add Property", section: "PPC Property" },
+  { key: "Bulk Upload Property", label: "Bulk Upload Property", section: "PPC Property" },
   { key: "Manage Property", label: "Manage Properties", section: "PPC Property" },
   { key: "Approved Property", label: "Approved Property", section: "PPC Property" },
   { key: "PreApproved Property", label: "PreApproved Property", section: "PPC Property" },
@@ -115,6 +120,10 @@ const ALL_FILES = [
   { key: "Buyer Payment PayNow", label: "Buyer Assistant Pay Now", section: "Buyer PayU" },
   { key: "Buyer Payment PayLater", label: "Buyer Assistant Pay Later", section: "Buyer PayU" },
 
+  // Customer direct PayU
+  { key: "Customer Direct Paid", label: "Paid", section: "Customer direct PayU" },
+  { key: "Customer Direct Failed", label: "Failed", section: "Customer direct PayU" },
+
   // Business Support
   { key: "Search Data", label: "Searched Data", section: "Business Support" },
   { key: "BuyerList Interest", label: "Buyers List - Interest", section: "Business Support" },
@@ -161,8 +170,18 @@ const ALL_FILES = [
   { key: "Transfer FllowUps", label: "Transfer FollowUps", section: "Follow Ups" },
   { key: "Transfer Assistant", label: "Transfer Assistant", section: "Follow Ups" },
 
+  // Points Pricing
+  { key: "Points Plans", label: "Points Plans - List", section: "Points Pricing" },
+  { key: "Points Users", label: "Points Users & Balance", section: "Points Pricing" },
+  { key: "Points Transactions", label: "Points Transactions", section: "Points Pricing" },
+  { key: "Points PayLater", label: "Points Pay Later Leads", section: "Points Pricing" },
+  { key: "Points PayU", label: "Points PayU Records", section: "Points Pricing" },
+  { key: "Points Refunds", label: "Points Refund Requests", section: "Points Pricing" },
+  { key: "Points Settings", label: "Points Settings", section: "Points Pricing" },
+
   // Settings
   { key: "User Roles", label: "User Rolls", section: "Settings" },
+  { key: "Admin OTP Number", label: "Admin OTP Number", section: "Settings" },
   { key: "Limits", label: "Limits", section: "Settings" },
   { key: "Admin Views Table", label: "Admin Views Table", section: "Settings" },
   { key: "Profile", label: "Profile", section: "Settings" },
@@ -180,11 +199,13 @@ const SECTION_COLORS = {
   "Customer Care": "#EF4444",
   "Property List": "#6366F1",
   "Buyer PayU": "#14B8A6",
+  "Customer direct PayU": "#7C3AED",
   "Business Support": "#F43F5E",
   "Lead Menu": "#A855F7",
   "No Property Users": "#64748B",
   "Business Statics": "#0EA5E9",
   "Follow Ups": "#D97706",
+  "Points Pricing": "#8BC34A",
   "Settings": "#DC2626",
 };
 
@@ -196,6 +217,30 @@ const groupBySection = (files) => {
     return acc;
   }, {});
 };
+
+// Section display order — kept in sync with the sidebar (Sidebar.jsx) so the
+// Roles & Access page lists sections in the same order the menu shows them.
+const SECTION_ORDER = [
+  "Dashboard",
+  "Report",
+  "Login Direct",
+  "Notification",
+  "Office Setup",
+  "Buyer Assistant",
+  "PPC Property",
+  "PPC Prop Accounts",
+  "Points Pricing",
+  "Customer Care",
+  "Property List",
+  "Buyer PayU",
+  "Customer direct PayU",
+  "Business Support",
+  "Lead Menu",
+  "No Property Users",
+  "Business Statics",
+  "Follow Ups",
+  "Settings",
+];
 
 const UserRolls = () => {
   const [rolls, setRolls] = useState([]);
@@ -223,7 +268,12 @@ const UserRolls = () => {
   const adminRole = reduxAdminRole || localStorage.getItem("adminRole");
 
   const grouped = groupBySection(ALL_FILES);
-  const sections = Object.keys(grouped);
+  // Order sections to match the sidebar; unknown sections fall to the end.
+  const sections = Object.keys(grouped).sort((a, b) => {
+    const ia = SECTION_ORDER.indexOf(a);
+    const ib = SECTION_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
 
   // ── Init ──────────────────────────────────────────────────────────
   useEffect(() => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import PhoneCell from "./components/PhoneCell";
 
 const DirectLogoutUsers = () => {
   const [phoneInput, setPhoneInput] = useState("");
@@ -173,7 +174,7 @@ const DirectLogoutUsers = () => {
                 logoutUsers.map((user, index) => (
                   <tr key={user._id}>
                     <td>{index + 1}</td>
-                    <td>{user.phone}</td>
+                    <td><PhoneCell phone={user.phone} type="any" /></td>
                     <td>{moment(user.logoutDate).format("YYYY-MM-DD HH:mm")}</td>
                     <td>{user.loggedOutBy || '—'}</td>
                     <td>
@@ -210,7 +211,7 @@ const DirectLogoutUsers = () => {
                 revokedUsers.map((user, index) => (
                   <tr key={user._id}>
                     <td>{index + 1}</td>
-                    <td>{user.phone}</td>
+                    <td><PhoneCell phone={user.phone} type="any" /></td>
                     <td>{user.unLoggedOutBy || '—'}</td>
                     <td>{user.revokedDate ? new Date(user.revokedDate).toLocaleString() : '—'}</td> 
                   </tr>

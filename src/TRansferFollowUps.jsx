@@ -168,6 +168,7 @@ const TransferFollowupDatas = () => {
                 <th>Status</th>
                 <th>Type</th>
                 <th>Date</th>
+                <th>Remark</th>
                 <th>Admin</th>
                 <th>Transferred From</th>
                 <th>Transferred To</th>
@@ -187,6 +188,7 @@ const TransferFollowupDatas = () => {
                     <td>{item.followupStatus}</td>
                     <td>{item.followupType}</td>
                     <td>{new Date(item.followupDate).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'left', maxWidth: '220px', whiteSpace: 'pre-wrap' }}>{item.remarks || '-'}</td>
                     <td>{item.adminName}</td>
                     <td>{latestTransfer.from || '-'}</td>
                     <td>{latestTransfer.to || '-'}</td>

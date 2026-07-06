@@ -33,22 +33,21 @@ const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
 
 const itemsPerPage = 30;
-  const handleDelete = async (ppcId) => {
+  const handleDelete = async (ppcId, phoneNumber) => {
     if (window.confirm(`Are you sure you want to delete PPC ID: ${ppcId}?`)) {
         try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-free-property/${ppcId}`, {
-                method: 'PUT',
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-helprequest/${ppcId}/${phoneNumber}`, {
+                method: 'DELETE',
             });
             const data = await response.json();
             alert(data.message);
 
+            // Remove the deleted help-request row from the table
             setHelpRequests(prev =>
-                prev.map(item =>
-                    item.ppcId === ppcId ? { ...item, isDeleted: true } : item
-                )
+                prev.filter(item => !(item.ppcId === ppcId && item.phoneNumber === phoneNumber))
             );
         } catch (error) {
-            alert('Failed to delete the property.');
+            alert('Failed to delete the help request.');
         }
     }
 };
@@ -387,7 +386,7 @@ const handleReset = () => {
                   <MdUndo />
                 </button>
               ) : (
-                <button className="btn btn-danger" onClick={() => handleDelete(data.ppcId)}>
+                <button className="btn btn-danger" onClick={() => handleDelete(data.ppcId, data.phoneNumber)}>
                   <MdDeleteForever size={24} />
                 </button>
               )}

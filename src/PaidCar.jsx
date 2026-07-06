@@ -108,34 +108,33 @@ const getLatestDate = (item) => {
      printWindow.document.close();
      printWindow.print();
    };
-  // Filter data based on user input
+  // Filter data based on user input.
+  // `data` is already flattened upstream (each item IS a property with parent
+  // info merged in via `user`, `parentCreatedAt`, etc.), so we filter the
+  // flat array directly rather than walking item.properties.
 const handleSearch = () => {
-  const filtered = data.map((item) => {
-    const billNoMatch = billNo
-      ? String(item.bill?.billNo || "").toLowerCase().includes(billNo.toLowerCase())
+  const term = (searchTerm || "").toLowerCase();
+  const billTerm = (billNo || "").toLowerCase();
+
+  const filtered = data.filter((property) => {
+    const ppcIdMatch = term
+      ? String(property.ppcId || "").toLowerCase().includes(term)
+      : true;
+    const phoneNumberMatch = term
+      ? String(property.phoneNumber || "").toLowerCase().includes(term)
+      : true;
+    const termMatch = term ? (ppcIdMatch || phoneNumberMatch) : true;
+
+    const billNoMatch = billTerm
+      ? String(property.user?.billNo || "").toLowerCase().includes(billTerm)
       : true;
 
-    return {
-      ...item,
-      properties: item.properties.filter((property) => {
-        const ppcIdMatch = searchTerm
-          ? String(property.ppcId || "").toLowerCase().includes(searchTerm.toLowerCase())
-          : true;
-        const phoneNumberMatch = searchTerm
-          ? String(property.phoneNumber || "").toLowerCase().includes(searchTerm.toLowerCase())
-          : true;
+    const createdAt = new Date(property.createdAt);
+    const startMatch = startDate ? createdAt >= new Date(startDate) : true;
+    const endMatch = endDate ? createdAt <= new Date(endDate + "T23:59:59") : true;
 
-        const createdAt = new Date(property.createdAt);
-        const startMatch = startDate ? createdAt >= new Date(startDate) : true;
-        const endMatch = endDate ? createdAt <= new Date(endDate + "T23:59:59") : true;
-
-        return (ppcIdMatch || phoneNumberMatch) && startMatch && endMatch;
-      }),
-    };
-  }).filter((item) => item.properties.length > 0 && billNo
-    ? String(item.bill?.billNo || "").toLowerCase().includes(billNo.toLowerCase())
-    : true
-  );
+    return termMatch && billNoMatch && startMatch && endMatch;
+  });
 
   setFilteredData(filtered);
 };
@@ -156,24 +155,18 @@ const handleReset = () => {
         });
         const data = await response.json();
         alert(data.message);
-  
-        // ✅ Update both `data` and `filteredData`
+
+        // Data is flat (each item is a property); update in place.
         setData(prevData =>
-          prevData.map(item => ({
-            ...item,
-            properties: item.properties.map(prop =>
-              prop.ppcId === ppcId ? { ...prop, isDeleted: true } : prop
-            ),
-          }))
+          prevData.map(property =>
+            property.ppcId === ppcId ? { ...property, isDeleted: true } : property
+          )
         );
-  
+
         setFilteredData(prevData =>
-          prevData.map(item => ({
-            ...item,
-            properties: item.properties.map(prop =>
-              prop.ppcId === ppcId ? { ...prop, isDeleted: true } : prop
-            ),
-          }))
+          prevData.map(property =>
+            property.ppcId === ppcId ? { ...property, isDeleted: true } : property
+          )
         );
       } catch (error) {
         alert('Failed to delete the property.');

@@ -1,6 +1,7 @@
  
 
 import React, { useEffect, useRef, useState } from "react";
+import PhoneCell from "./components/PhoneCell";
 
 const WithoutProperty30DaysUser = () => {
   const [users, setUsers] = useState([]);
@@ -154,7 +155,7 @@ const filteredUsers = users.filter((user) => {
               return (
                 <tr key={index}>
                   <td>{index+1}</td>
-                  <td>{user.phoneNumber}</td>
+                  <td><PhoneCell phone={user.phoneNumber} type="any" /></td>
                   <td>{new Date(user.loginDate).toLocaleString()}</td>
                   <td>{user.viewsInLast30Days}</td>
                   <td>

@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 import Navbar from "./Navbar";
 import LoginReport from "./LoginReport";
 import AdminReport from "./AdminReport";
+import PPCStaffReport from "./PPCStaffReport";
 import Plan from "./Plan";
 import Statistics from "./Statistics";
 import AdminNotification from "./AdminNotification";
@@ -31,6 +32,8 @@ import CallBackForm from "./CallBackForm";
 import CarFollowUps from "./CarFollowUps";
 import CarMake from "./CarMake";
 import CarStatics from "./CarStatics";
+import DownloadHistory from "./DownloadHistory";
+import DownloadTracker from "./DownloadTracker";
 import City from "./Places/City";
 import CustomerCar from "./CustomerCar";
 import DailyUsage from "./DailyUsage";
@@ -40,6 +43,7 @@ import District from "./Places/District";
 import DownloadLeads from "./DownloadLeads";
 import ExpireCar from "./ExpireCar";
 import ExpiredAssistant from "./ExpiredAssistant";
+import RemovedBuyerAssistance from "./RemovedBuyerAssistance";
 import FreeBills from "./FreeBills";
 import FreeCar from "./FreeCar";
 import FreeUserLead from "./FreeUserLead";
@@ -61,6 +65,9 @@ import PayUMoney from "./PayUMoney";
 import PendingCar from "./PendingCar";
 import PhotoRequest from "./PhotoRequest";
 import PreApprovedCar from "./PreApprovedCar";
+import PricingInfo from "./PricingInfo";
+import PricingInfoDetail from "./PricingInfoDetail";
+import BuyerBudgetDetail from "./BuyerBudgetDetail";
 import Profile from "./Profile";
 import PucBanner from "./PucBanner";
 import PucCar from "./PucCar";
@@ -91,6 +98,7 @@ import Detail from './Detail';
 import AdminSetForm from './DataAddAdmin/AdminSetForm';
 import InterestTables from './Detail/InterestTables';
 import AddPropertyList from './AddPropertyList';
+import BulkUploadProperty from './BulkUploadProperty';
 import FavoriteTable from './Detail/FavoriteTables';
 import FavoriteTables from './Detail/FavoriteTables';
 import NeedHelpLeadTable from './HelpLoanLead';
@@ -149,6 +157,8 @@ import PaymentPaidPayNow from './PayuDatas/PaymentPaidPayNow';
 import PaymentPaidPayLater from './PayuDatas/PaymentPaidPayLater';
 import PayuBuyerPaid from './PayuBuyerPayments/PayuBuyerPaid';
 import PayuBuyerPayFailed from './PayuBuyerPayments/PayuBuyerPayFailed';
+import CustomerDirectPaid from './PayuDirectPayments/CustomerDirectPaid';
+import CustomerDirectFailed from './PayuDirectPayments/CustomerDirectFailed';
 import PayuBuyerPaynow from './PayuBuyerPayments/PayuBuyerPaynow';
 import PayuBuyerPaylater from './PayuBuyerPayments/PayuBuyerPaylater';
 import AllBillsTable from './AllBills';
@@ -173,10 +183,20 @@ import UpLoadDetailAds from './UploadDetailAds';
 import CallExperienceList from './GetCalledExpirence';
 import SummaryDashboard from './Subscriber';
 import PropertyPaymentDailyReport from './PropertyPaymentDailyReport';
+import PointsPlans from './PointsPricing/PointsPlans';
+import PointsUsers from './PointsPricing/PointsUsers';
+import PointsTransactions from './PointsPricing/PointsTransactions';
+import PointsPayLater from './PointsPricing/PointsPayLater';
+import PointsPayU from './PointsPricing/PointsPayU';
+import PointsSettings from './PointsPricing/PointsSettings';
+import PointsRefundRequests from './PointsPricing/PointsRefundRequests';
+import OtpNumbers from './OtpNumbers';
+import { FollowupProvider } from './contexts/FollowupContext';
 
 const routes = [
   { path: "/loginreport", element: <LoginReport /> }, 
   { path: "/adminreport", element: <AdminReport /> },
+  { path: "/ppc-staff-report", element: <PPCStaffReport /> },
   { path: "/plan", element: <AddPlan /> },
   { path: "/buyerplan", element: <BuyerPlan /> },
   { path: "/statistics", element: <Statistics /> },
@@ -201,6 +221,7 @@ const routes = [
   { path: "/car-follow-ups", element: <CarFollowUps /> },
   { path: "/car-make", element: <CarMake /> },
   { path: "/carstatics", element: <CarStatics /> },
+  { path: "/download-history", element: <DownloadHistory /> },
   { path: "/city", element: <City /> },
   { path: "/customer-car", element: <CustomerCar /> },
   { path: "/daily-usage", element: <DailyUsage /> },
@@ -210,6 +231,7 @@ const routes = [
   { path: "/downloadleads", element: <DownloadLeads /> },
   { path: "/expire-car", element: <ExpireCar /> },
   { path: "/expired-assistant", element: <ExpiredAssistant /> },
+  { path: "/removed-buyer-assistant", element: <RemovedBuyerAssistance /> },
   { path: "/free-bills", element: <FreeBills /> },
   { path: "/free-car", element: <FreeCar /> },
   { path: "/free-user-lead", element: <FreeUserLead /> },
@@ -238,6 +260,9 @@ const routes = [
   { path: "/removed-car", element: <RemovedCar /> },
   { path: "/reported-cars", element: <ReportedCar /> },
   { path: "/searchcar", element: <SearchCar /> },
+  { path: "/pricing-info", element: <PricingInfo /> },
+  { path: "/pricing-info/:bucket", element: <PricingInfoDetail /> },
+  { path: "/buyer-budget-info/:bucket", element: <BuyerBudgetDetail /> },
   { path: "/searched-data", element: <SearchedData /> },
   { path: "/subscriber", element: <Subscriber /> },
   { path: "/transfer-assistant", element: <TransferAssistant /> },
@@ -266,6 +291,7 @@ const routes = [
   { path: "/soldout-table", element: <SoldOutTables /> },
   { path: "/report-property-table", element: <ReportPropertyTables /> },
   { path: "/property-list", element: <AddPropertyList /> },
+  { path: "/bulk-upload-property", element: <BulkUploadProperty /> },
   { path: "/get-buyer-assistance", element: <GetBuyerAssistance /> },
   { path: "/text-editor", element: <TextEditor /> },
   { path: "/get-matched-properties", element: <MatchedPropertyTable /> },
@@ -317,6 +343,8 @@ const routes = [
 
   { path: "/payment-failed-buyer", element: < PayuBuyerPayFailed /> },
         { path: "/payment-success-buyer", element: < PayuBuyerPaid /> },
+        { path: "/customer-direct-paid", element: <CustomerDirectPaid /> },
+        { path: "/customer-direct-failed", element: <CustomerDirectFailed /> },
     { path: "/payment-paynow-buyer", element: < PayuBuyerPaynow /> },
     { path: "/payment-paylater-buyer", element: < PayuBuyerPaylater /> },
     { path: "/all-bills", element: < AllBillsTable /> },
@@ -348,6 +376,16 @@ const routes = [
                                 { path: "/daily-report", element: < SummaryDashboard /> },
                                 { path: "/payment-daily-report", element: < PropertyPaymentDailyReport /> },
 
+  { path: "/points-plans",        element: <PointsPlans /> },
+  { path: "/points-users",        element: <PointsUsers /> },
+  { path: "/points-transactions", element: <PointsTransactions /> },
+  { path: "/points-paylater",     element: <PointsPayLater /> },
+  { path: "/points-payu",         element: <PointsPayU /> },
+  { path: "/points-settings",     element: <PointsSettings /> },
+  { path: "/points-refunds",      element: <PointsRefundRequests /> },
+
+  { path: "/otp-numbers",         element: <OtpNumbers /> },
+
 ];
 
 
@@ -360,20 +398,23 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-2" style={{ background: "#F0F2F5" }}>
-      <div className="dashboard-container">
-        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className="main-content" style={{ background: "#F0F2F5" }}>
-          <Navbar toggleSidebar={toggleSidebar} />
- 
-          <Routes>
-            {routes.map((route, index) => (
-              <Route key={index} path={route.path} element={route.element} />
-            ))}
-          </Routes>
+    <FollowupProvider>
+      <div className="p-2" style={{ background: "#F0F2F5" }}>
+        <div className="dashboard-container">
+          <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+          <div className="main-content" style={{ background: "#F0F2F5" }}>
+            <Navbar toggleSidebar={toggleSidebar} />
+            <DownloadTracker />
+
+            <Routes>
+              {routes.map((route, index) => (
+                <Route key={index} path={route.path} element={route.element} />
+              ))}
+            </Routes>
+          </div>
         </div>
       </div>
-    </div>
+    </FollowupProvider>
   );
 };
 

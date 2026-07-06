@@ -141,6 +141,7 @@ const fetchFollowups = async () => {
             <th>FollowUp Status</th>
             <th>Followup Type</th>
             <th>Followup Date</th>
+            <th>Remark</th>
             <th>Property Type</th>
             <th>Mode</th>
             <th>Price</th>
@@ -184,6 +185,7 @@ const fetchFollowups = async () => {
         <td>{fu.followupStatus}</td>
         <td>{fu.followupType}</td>
         <td>{new Date(fu.followupDate).toLocaleDateString()}</td>
+        <td style={{ textAlign: 'left', maxWidth: '220px', whiteSpace: 'pre-wrap' }}>{fu.remarks || 'N/A'}</td>
         <td>{prop.propertyType || 'N/A'}</td>
         <td>{prop.propertyMode || 'N/A'}</td>
         <td>{prop.price || 'N/A'}</td>

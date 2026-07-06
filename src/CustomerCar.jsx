@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table } from 'react-bootstrap';
 import moment from 'moment';
 import { useSelector } from 'react-redux';
-import { MdDeleteForever, MdUndo } from 'react-icons/md';
+import { MdDeleteForever } from 'react-icons/md';
 
 const CustomerCare = () => {
   const [propertyData, setPropertyData] = useState([]);
@@ -101,6 +101,7 @@ const filteredPropertyData = propertyData.filter((item) => {
     (!to || (createdAt && createdAt <= to));
 
   return (
+    !item.isDeleted &&
     ppcMatch &&
     phoneMatch &&
     statusMatch &&
@@ -113,43 +114,18 @@ const filteredPropertyData = propertyData.filter((item) => {
 
 
   const handleDelete = async (ppcId) => {
-    if (window.confirm(`Are you sure you want to delete PPC ID: ${ppcId}?`)) {
+    if (window.confirm(`Are you sure you want to permanently delete PPC ID: ${ppcId}? This cannot be undone.`)) {
         try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-free-property/${ppcId}`, {
-                method: 'PUT',
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/hard-delete-free-property/${ppcId}`, {
+                method: 'DELETE',
             });
             const data = await response.json();
             alert(data.message);
 
-            // Update state
-            setPropertyData(prev =>
-                prev.map(item =>
-                    item.ppcId === ppcId ? { ...item, isDeleted: true } : item
-                )
-            );
+            // Permanently remove the row from the list
+            setPropertyData(prev => prev.filter(item => item.ppcId !== ppcId));
         } catch (error) {
             alert('Failed to delete the property.');
-        }
-    }
-};
-
-const handleUndoDelete = async (ppcId) => {
-    if (window.confirm(`Are you sure you want to undo delete for PPC ID: ${ppcId}?`)) {
-        try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/undo-delete-free-property/${ppcId}`, {
-                method: 'PUT',
-            });
-            const data = await response.json();
-            alert(data.message);
-
-            // Update state
-            setPropertyData(prev =>
-                prev.map(item =>
-                    item.ppcId === ppcId ? { ...item, isDeleted: false } : item
-                )
-            );
-        } catch (error) {
-            alert('Failed to undo delete.');
         }
     }
 };
@@ -434,23 +410,13 @@ onSubmit={(e) => e.preventDefault()}>
                 <td>{help?.phoneNumber || report?.phoneNumber || "-"}</td>
   
                 <td>
-                  {item.isDeleted ? (
-                    <button
-                      className="btn btn-success btn-sm"
-                      onClick={() => handleUndoDelete(item.ppcId)}
-                      title="Undo Delete"
-                    >
-                      <MdUndo size={20} />
-                    </button>
-                  ) : (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(item.ppcId)}
-                      title="Delete"
-                    >
-                      <MdDeleteForever size={20} />
-                    </button>
-                  )}
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(item.ppcId)}
+                    title="Delete"
+                  >
+                    <MdDeleteForever size={20} />
+                  </button>
                 </td>
               </tr>
             );

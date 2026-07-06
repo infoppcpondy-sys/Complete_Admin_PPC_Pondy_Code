@@ -10,6 +10,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useNavigate } from "react-router-dom";
+import PhoneCell from "./components/PhoneCell";
 
 
 const OfferesRaised = () => {
@@ -307,8 +308,8 @@ const handleDownloadExcel = () => {
                                 state: { ppcId: offer.ppcId, phoneNumber: offer.phoneNumber },
                               })
                             }>{offer.ppcId}</td>
-              <td>{offer.phoneNumber}</td>
-              <td>{offer.postedUserPhoneNumber}</td>
+              <td><PhoneCell phone={offer.phoneNumber} type="any" /></td>
+              <td><PhoneCell phone={offer.postedUserPhoneNumber} type="any" /></td>
               <td>{offer.originalPrice}</td>
               <td>{offer.price}</td>
               <td>{offer.status}</td>

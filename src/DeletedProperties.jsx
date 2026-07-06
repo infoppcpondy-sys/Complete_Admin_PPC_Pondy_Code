@@ -6,6 +6,7 @@ import { Table, Button } from "react-bootstrap";
 import { FaTrash } from "react-icons/fa"; // Import delete icon from react-icons
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import PhoneCell from "./components/PhoneCell";
 
 const DeletedProperties = () => {
   const [filters, setFilters] = useState({
@@ -383,7 +384,7 @@ const DeletedProperties = () => {
                   >
                     {property.ppcId}
                   </td>
-                  <td>{property.phoneNumber}</td>
+                  <td><PhoneCell phone={property.phoneNumber} type="owner" ppcId={property.ppcId} /></td>
                   <td>{property.propertyMode}</td>
                   <td>{property.propertyType}</td>
                   <td>₹ {property.price}</td>

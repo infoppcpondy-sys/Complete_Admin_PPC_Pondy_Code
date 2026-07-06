@@ -10,6 +10,7 @@ import { useSelector } from 'react-redux';
 import moment from 'moment';
 import { FaEye, FaPrint } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import PhoneCell from './components/PhoneCell';
 
 const DevoloperProperty = () => {
   const [developerList, setDeveloperList] = useState([]);
@@ -93,7 +94,7 @@ const handleReset = () => {
           {list.length > 0 ? (
             list.map((item) => (
               <tr key={item._id}>
-                <td>{item.phoneNumber || '-'}</td>
+                <td><PhoneCell phone={item.phoneNumber} display={item.phoneNumber || '-'} type="owner" ppcId={item.ppcId} /></td>
                 <td style={{cursor: "pointer"}}         onClick={() =>
                                            navigate(`/dashboard/detail`, {
                                              state: { ppcId: item.ppcId, phoneNumber: item.phoneNumber },

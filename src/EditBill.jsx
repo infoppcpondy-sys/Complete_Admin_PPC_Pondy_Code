@@ -190,11 +190,16 @@ const EditBill = () => {
             required
           >
             <option value="">Select Plan</option>
-            {plans.map((plan, idx) => (
-              <option key={idx} value={plan.name.trim()}>
-                {plan.name.trim()}
-              </option>
-            ))}
+            {/* Admin-only "Free" plan for billing. Not part of the plans data,
+                so it never appears in the user-side app. */}
+            <option value="Free">Free</option>
+            {plans
+              .filter((plan) => plan?.name?.trim?.().toLowerCase() !== 'free')
+              .map((plan, idx) => (
+                <option key={idx} value={plan.name.trim()}>
+                  {plan.name.trim()}
+                </option>
+              ))}
           </select>
         </div>
 

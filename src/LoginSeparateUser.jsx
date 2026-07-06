@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import PhoneCell from "./components/PhoneCell";
 
 const LoginSeparateUser = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -180,7 +181,7 @@ return (
           </thead>
           <tbody>
             <tr>
-              <td>{(filteredData || data).phone}</td>
+              <td><PhoneCell phone={(filteredData || data).phone} type="any" /></td>
               <td>{(filteredData || data).date}</td>
               <td>{(filteredData || data).count}</td>
               <td>
@@ -199,7 +200,7 @@ return (
     {/* Every Day History Table */}
     {viewType === 'everyDay' && (filteredData || data) && (
       <div className="mt-3">
-        <h5>Phone: {(filteredData || data).phone}</h5>
+        <h5>Phone: <PhoneCell phone={(filteredData || data).phone} type="any" /></h5>
         <table className="table table-bordered mt-2">
           <thead>
             <tr>

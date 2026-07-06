@@ -1291,38 +1291,9 @@ return (
 
       {/* Contact Info Section */}
       <h5 className="pt-3 fw-bold">Contact Info</h5>
-   
 
-<div 
-  className="btn rounded-1 p-2 text-center d-flex align-items-center justify-content-center" 
-  style={{ background: 'transparent', border: '1px solid #30747F', color: '#30747F' }} 
-  onMouseOver={(e) => {
-    e.target.style.background = "#46AFAA";
-    e.target.style.color = "#fff";
-
-    e.target.style.fontWeight = 500;
-    e.target.style.transition = "background 0.3s ease";
-  }}
-  onMouseOut={(e) => {
-    e.target.style.border = "'1px solid #30747F'";
-    e.target.style.fontWeight = 400;
-    e.target.style.background = "transparent";
-    e.target.style.color = "#30747F";
-
-
-  }}
-  onClick={handleOwnerContactClick}
->
-  <img 
-    src={contact} 
-    alt="Contact Icon" 
-    style={{ width: '20px', height: '20px', marginRight: '8px' }} 
-  />
-  View owner contact details
-</div>
-      {showContactDetails && (
         <div className="mt-3">
-      
+
    <div className="row g-3">
 
 {/* Name */}
@@ -1401,29 +1372,7 @@ return (
 
 </div>
 
-          <span className="d-flex justify-content-end align-items-center">
-
-
-  <button
-    className="btn btn-outline-#30747F m-0 d-flex align-items-center gap-2"
-    style={{ color: "white",backgroundColor:" #30747F", border: "1px solid #30747F" }}
-    onClick={() => (window.location.href = `tel:${propertyDetails.phoneNumber}`)}
-    onMouseOver={(e) => {
-      e.target.style.background = "#029bb3";
-      e.target.style.fontWeight = 600;
-      e.target.style.transition = "background 0.3s ease";
-    }}
-    onMouseOut={(e) => {
-      e.target.style.background = "#2F747F";
-      e.target.style.fontWeight = 400;
-    }}
-  >
-    <FaPhoneAlt style={{  transition: 'color 0.3s ease-in-out' , background:"transparent"}}/> Call
-    
-  </button>
-</span>
         </div>
-      )}
 
       {/* Image modal */}
       {showModal && (
@@ -1444,42 +1393,6 @@ return (
 
 
 
-      <div className="container my-5" style={{ maxWidth: "450px" }}>
-        <div className="row justify-content-center">
-          {cards.map((card, index) => (
-            <div key={index} className="col-3 d-flex justify-content-center">
-              <div
-                className="card text-center shadow"
-                style={{
-                  width: "100px",
-                  height: "80px",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  border: 'none'
-                }}
-                onClick={card.onClick}
-              >
-                <div className="d-flex justify-content-center align-items-center" style={{ height: "50%", width: "100%" }}>
-                  <img
-                    src={card.img}
-                    alt={`Card ${index + 1}`}
-                    style={{ width: "30px", height: "30px", objectFit: "cover", marginTop: "5px" }}
-                  />
-                </div>
-                <div className="d-flex justify-content-center align-items-center" style={{ height: "50%", width: "100%", textAlign: "center" }}>
-                  <p className="card-text" style={{ fontSize: "10px", margin: "0", wordWrap: "break-word", overflow: "visible" }}>
-                    {card.text}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-   
 {Popup && (
   <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
     <div className="modal-dialog modal-dialog-centered">
@@ -1690,19 +1603,6 @@ return (
 />
     </div>
     </div>
-    <div className="d-flex align-items-center justify-content-around w-100 button-group">
-        <button onClick={handleGoBack} className="d-flex align-items-center justify-content-start ps-3"
-        style={{background:"#5AB89E" , color:"#fff" , }}
-        ><IoChevronBackSharp />
- Back</button>
-        <button className="d-flex align-items-center justify-content-start ps-3" onClick={() => navigate('/mobileviews')}        style={{background:"#5AB89E" , color:"#fff" }}
-        ><TiHome />
-Home</button>
-        <button className="d-flex align-items-center justify-content-start ps-3" onClick={handleIncreasePpcId}         style={{background:"#5AB89E" , color:"#fff" ,}}
-        >Next
-          <GrNext />
- </button>
-      </div>
 {propertyDetails?.locationCoordinates && (
   <div className="mt-3">
     <h6>Property Location on Map:</h6>
@@ -1713,7 +1613,6 @@ Home</button>
   </div>
 )}
 
-   <img src={promotion} alt="" className="p-4 m-0" />
     </div>
     </div>
     </div>

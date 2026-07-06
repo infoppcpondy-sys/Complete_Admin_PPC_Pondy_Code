@@ -21,6 +21,7 @@ import html2canvas from 'html2canvas';
 import moment from 'moment';
 import { useSelector } from 'react-redux';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerDashboard = () => {
   const [inputDates, setInputDates] = useState('');
@@ -354,7 +355,7 @@ const BuyerDashboard = () => {
                         <tr key={idx}>
                           <td>{request.ba_id}</td>
                           <td>{request.buyerId || 'N/A'}</td>
-                          <td>{request.phoneNumber}</td>
+                          <td><PhoneCell phone={request.phoneNumber} type="any" /></td>
                           <td>
                             <Badge bg={request.ba_status === 'baActive' ? 'success' : 'warning'}>
                               {request.ba_status}

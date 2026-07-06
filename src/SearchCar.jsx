@@ -39,7 +39,7 @@ const SearchProperty = () => {
     negotiation: '', length: '', breadth: '', totalArea: '', ownership: '', bedrooms: '',
     kitchen: '', kitchenType: '', balconies: '', floorNo: '', areaUnit: '', propertyApproved: '',
     facing: '', salesMode: '', salesType: '', furnished: '', lift: '', attachedBathrooms: '',
-    western: '', numberOfFloors: '', carParking: '', city: '' , status:''
+    western: '', numberOfFloors: '', carParking: '', city: '' , status:'', area: ''
   });
   useEffect(() => {
     const fetchProperties = async () => {
@@ -1941,7 +1941,172 @@ const SearchProperty = () => {
   </div>
 </div>
 
- 
+
+      {/* Inline filter row — quick filters above the table. These bind to the
+          same advancedFilters state as the "Search List" modal, so changes in
+          either reflect immediately. The modal stays available for the full
+          set of advanced filters. */}
+      <div
+        className="mb-3 p-3"
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div className="row g-2 align-items-end">
+          <div className="col-md-2">
+            <label className="form-label fw-semibold mb-1">Property Mode</label>
+            <select
+              className="form-select"
+              value={advancedFilters.propertyMode || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  propertyMode: e.target.value,
+                }))
+              }
+            >
+              <option value="">All</option>
+              {(dataList.propertyMode || []).map((opt, i) => (
+                <option key={i} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-md-2">
+            <label className="form-label fw-semibold mb-1">Property Type</label>
+            <select
+              className="form-select"
+              value={advancedFilters.propertyType || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  propertyType: e.target.value,
+                }))
+              }
+            >
+              <option value="">All</option>
+              {(dataList.propertyType || []).map((opt, i) => (
+                <option key={i} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-md-2">
+            <label className="form-label fw-semibold mb-1">Min Price</label>
+            <input
+              type="number"
+              list="priceSuggestions"
+              className="form-control"
+              placeholder="Min"
+              value={advancedFilters.minPrice || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  minPrice: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="col-md-2">
+            <label className="form-label fw-semibold mb-1">Max Price</label>
+            <input
+              type="number"
+              list="priceSuggestions"
+              className="form-control"
+              placeholder="Max"
+              value={advancedFilters.maxPrice || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  maxPrice: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          {/* Shared suggestion list — browsers show it as a dropdown when the
+              Min/Max Price input is focused. Users can still type any custom
+              value; the suggestions are just shortcuts. */}
+          <datalist id="priceSuggestions">
+            <option value="100000" label="₹1 Lakh" />
+            <option value="200000" label="₹2 Lakh" />
+            <option value="500000" label="₹5 Lakh" />
+            <option value="1000000" label="₹10 Lakh" />
+            <option value="1500000" label="₹15 Lakh" />
+            <option value="2000000" label="₹20 Lakh" />
+            <option value="3000000" label="₹30 Lakh" />
+            <option value="5000000" label="₹50 Lakh" />
+            <option value="7500000" label="₹75 Lakh" />
+            <option value="10000000" label="₹1 Crore" />
+            <option value="15000000" label="₹1.5 Crore" />
+            <option value="20000000" label="₹2 Crore" />
+            <option value="30000000" label="₹3 Crore" />
+            <option value="50000000" label="₹5 Crore" />
+            <option value="100000000" label="₹10 Crore" />
+          </datalist>
+
+          <div className="col-md-1">
+            <label className="form-label fw-semibold mb-1">Total Area</label>
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Area"
+              value={advancedFilters.totalArea || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  totalArea: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="col-md-2">
+            <label className="form-label fw-semibold mb-1">Area</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="e.g. Pondicherry"
+              value={advancedFilters.area || ""}
+              onChange={(e) =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  area: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="col-md-1 d-flex">
+            <button
+              type="button"
+              className="btn btn-outline-secondary w-100"
+              onClick={() =>
+                setAdvancedFilters((prev) => ({
+                  ...prev,
+                  propertyMode: "",
+                  propertyType: "",
+                  minPrice: "",
+                  maxPrice: "",
+                  totalArea: "",
+                  area: "",
+                }))
+              }
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
       {filteredProperties.length > 0 ? (
       <div className="row">
  <div ref={tableRef}>

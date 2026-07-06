@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { FaEdit } from "react-icons/fa";
 import { MdDeleteForever } from "react-icons/md";
 import { Table } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
 
 const ProfileTable = () => {
   const [profiles, setProfiles] = useState([]);
@@ -219,7 +220,7 @@ const ProfileTable = () => {
             <tr key={profile._id}>
               <td className="border p-2">{profile.name}</td>
               <td className="border p-2">{profile.email}</td>
-              <td className="border p-2">{profile.mobile}</td>
+              <td className="border p-2"><PhoneCell phone={profile.mobile} type="any" /></td>
               <td className="border p-2">{profile.address}</td>
               <td className="border p-2 text-center">
                 <button

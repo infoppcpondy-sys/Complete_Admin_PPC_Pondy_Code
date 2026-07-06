@@ -3,6 +3,7 @@ import axios from "axios";
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { Table } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
 
 const AllUserCallsTable = () => {
   const [calls, setCalls] = useState([]);
@@ -183,9 +184,9 @@ useEffect(() => {
       <tr key={call._id} style={{ backgroundColor: call.isDeleted ? '#ffe6e6' : 'white' }}>
         <td>{index + 1}</td>
         <td>{call.ppcId || '-'}</td>
-        <td>{call.phoneNumber || '-'}</td>
+        <td><PhoneCell phone={call.phoneNumber} display={call.phoneNumber || '-'} type="any" /></td>
         <td>{call.status || '-'}</td>
-        <td>{call.propertyPhoneNumber || '-'}</td>
+        <td><PhoneCell phone={call.propertyPhoneNumber} display={call.propertyPhoneNumber || '-'} type="any" /></td>
         <td>{call.propertyMode || '-'}</td>
         <td>{call.propertyType || '-'}</td>
         <td>{call.postedBy || '-'}</td>

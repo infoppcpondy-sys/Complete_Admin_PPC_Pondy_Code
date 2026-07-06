@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import PhoneCell from "./components/PhoneCell";
 
 const BankLoanPropertiesTable = () => {
   const [properties, setProperties] = useState([]);
@@ -137,7 +138,7 @@ const currentData = filteredData.slice(
                 <tr key={item._id} className="text-center">
                   <td className="border px-2 py-2">{(currentPage - 1) * itemsPerPage + i + 1}</td>
                   <td className="border px-2 py-2">{item.ppcId}</td>
-                  <td className="border px-2 py-2">{item.phoneNumber}</td>
+                  <td className="border px-2 py-2"><PhoneCell phone={item.phoneNumber} type="any" /></td>
                   <td className="border px-2 py-2">₹{item.price?.toLocaleString()}</td>
                   <td className="border px-2 py-2">{item.propertyMode}</td>
                   <td className="border px-2 py-2">{item.propertyType}</td>

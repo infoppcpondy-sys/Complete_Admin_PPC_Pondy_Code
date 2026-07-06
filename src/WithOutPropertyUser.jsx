@@ -4,6 +4,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import PhoneCell from "./components/PhoneCell";
 
 const WithOutUsersTable = () => {
   const [users, setUsers] = useState([]);
@@ -186,7 +187,7 @@ const WithOutUsersTable = () => {
                       <i className={`bi bi-chevron-${openRow === index ? 'up' : 'down'}`}></i>
                     </td>
                     <td>{index + 1}</td>
-                    <td>{user.phoneNumber || 'N/A'}</td>
+                    <td><PhoneCell phone={user.phoneNumber} display={user.phoneNumber || 'N/A'} type="any" /></td>
                     <td>{user.loginDate ? new Date(user.loginDate).toLocaleDateString() : 'N/A'}</td>
                     <td>{user.planName || 'N/A'}</td>
                     <td>{user.planCreatedDate ? new Date(user.planCreatedDate).toLocaleDateString() : 'N/A'}</td>
@@ -219,7 +220,7 @@ const WithOutUsersTable = () => {
                                     user.viewedPpcIds.map((view, idx) => (
                                       <tr key={idx}>
                                         <td>{view.ppcId}</td>
-                                        <td>{view.ownerPhone}</td>
+                                        <td><PhoneCell phone={view.ownerPhone} type="any" /></td>
                                       </tr>
                                     ))
                                   ) : (
@@ -244,7 +245,7 @@ const WithOutUsersTable = () => {
                                     user.contactedPpcIds.map((contact, idx) => (
                                       <tr key={idx}>
                                         <td>{contact.ppcId}</td>
-                                        <td>{contact.ownerPhone}</td>
+                                        <td><PhoneCell phone={contact.ownerPhone} type="any" /></td>
                                       </tr>
                                     ))
                                   ) : (

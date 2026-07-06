@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { useSelector } from "react-redux";
 import * as XLSX from "xlsx";
+import PhoneCell from "./components/PhoneCell";
 
 const ApprovedCar = () => {
   const [properties, setProperties] = useState([]);
@@ -30,6 +31,11 @@ const ApprovedCar = () => {
   const [bankLoan, setBankLoan] = useState("");
   const [priceFilter, setPriceFilter] = useState("");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("");
+  // Collapsed by default — the quick-filter chips only show after the admin
+  // clicks the "Advanced Filters" toggle.
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [propertyTypeSelect, setPropertyTypeSelect] = useState("");
+  const [propertyModeSelect, setPropertyModeSelect] = useState("");
   const [showMoveToModal, setShowMoveToModal] = useState(false);
   const [selectedPropertyForMove, setSelectedPropertyForMove] = useState(null);
 
@@ -37,6 +43,10 @@ const ApprovedCar = () => {
   // Shape: { [ppcId]: { billNo: string, billType: string } }
   const [freePlansBillMap, setFreePlansBillMap] = useState({});
   // ─────────────────────────────────────────────────────────────────────────
+
+  // Approved By (staff name) filter + the staff list that fills its dropdown
+  const [approvedByFilter, setApprovedByFilter] = useState("");
+  const [adminList, setAdminList] = useState([]);
 
   const navigate = useNavigate();
   const mapRef = useRef(null);
@@ -112,6 +122,20 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
   }, []);
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Fetch the staff list for the "Approved By" filter dropdown
+  // (same source as the Users / Create Staff page).
+  useEffect(() => {
+    axios
+      .get(`${process.env.REACT_APP_API_URL}/admin-all`)
+      .then((res) => {
+        const names = Array.isArray(res.data)
+          ? res.data.map((u) => (u.name || "").trim()).filter(Boolean)
+          : [];
+        setAdminList([...new Set(names)].sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => {});
+  }, []);
+
   const tableRef = useRef();
 
   const handlePrintt = () => {
@@ -157,6 +181,8 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
       City: prop.city || "",
       Pincode: prop.pinCode || "",
       CreatedBy: prop.createdBy || "",
+      "Added By": prop.addedBy || "",
+      "Approved By": prop.approvedBy || "",
       "Created At": prop.createdAt
         ? new Date(prop.createdAt).toLocaleDateString()
         : "",
@@ -272,20 +298,13 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
     }
 
     // Photo Filter
+    // A property is considered "with photo" exactly the way the table decides
+    // it: a non-empty photos array (the table falls back to the default image
+    // only when prop.photos[0] is missing).
     if (hasPhoto === "yes") {
-      result = result.filter(
-        (prop) =>
-          prop.photos &&
-          prop.photos.length > 0 &&
-          `http://localhost:5006/${prop.photos[0]}` !== DEFAULT_IMAGE,
-      );
+      result = result.filter((prop) => prop.photos && prop.photos.length > 0);
     } else if (hasPhoto === "no") {
-      result = result.filter(
-        (prop) =>
-          !prop.photos ||
-          prop.photos.length === 0 ||
-          `http://localhost:5006/${prop.photos[0]}` === DEFAULT_IMAGE,
-      );
+      result = result.filter((prop) => !prop.photos || prop.photos.length === 0);
     }
 
     // Not Viewed
@@ -313,18 +332,45 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
           Number(prop.price) >= 3000000 && Number(prop.price) <= 5000000,
       );
     } else if (priceFilter === "plot15") {
+      // Match any plot-type property ("Residential Land/ Plot", "Plot", etc.),
+      // not only the literal value "plot".
       result = result.filter(
         (prop) =>
-          String(prop.propertyType).toLowerCase() === "plot" &&
+          String(prop.propertyType || "").toLowerCase().includes("plot") &&
           Number(prop.price) < 1500000,
       );
     }
 
     // Agricultural Land Filter
     if (propertyTypeFilter === "agri") {
+      // Robust match for agricultural property types (e.g. "Agricultural Land").
+      result = result.filter((prop) =>
+        String(prop.propertyType || "").toLowerCase().includes("agricult"),
+      );
+    }
+
+    // Property Type Filter (dropdown)
+    if (propertyTypeSelect) {
       result = result.filter(
         (prop) =>
-          String(prop.propertyType).toLowerCase() === "agricultural land",
+          String(prop.propertyType || "").toLowerCase() ===
+          propertyTypeSelect.toLowerCase(),
+      );
+    }
+
+    // Property Mode Filter (dropdown)
+    if (propertyModeSelect) {
+      result = result.filter(
+        (prop) =>
+          String(prop.propertyMode || "").toLowerCase() ===
+          propertyModeSelect.toLowerCase(),
+      );
+    }
+
+    // Approved By Filter (staff name dropdown) — matches the Approved By column
+    if (approvedByFilter) {
+      result = result.filter(
+        (prop) => (prop.approvedBy || "") === approvedByFilter,
       );
     }
 
@@ -359,12 +405,18 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
     bankLoan,
     priceFilter,
     propertyTypeFilter,
+    propertyTypeSelect,
+    propertyModeSelect,
+    approvedByFilter,
   ]);
 
   const handleReset = () => {
     setPpcIdSearch("");
     setPhoneNumberSearch("");
     setPincodeSearch("");
+    setPropertyTypeSelect("");
+    setPropertyModeSelect("");
+    setApprovedByFilter("");
 
     setStartDate("");
     setEndDate("");
@@ -815,6 +867,22 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
   const totalRecords = properties.length;
   const showingCount = filtered.length;
 
+  // Unique Property Type / Property Mode options built from the data
+  const propertyTypeOptions = [
+    ...new Set(
+      properties
+        .map((p) => (p.propertyType || "").trim())
+        .filter((v) => v !== ""),
+    ),
+  ].sort();
+  const propertyModeOptions = [
+    ...new Set(
+      properties
+        .map((p) => (p.propertyMode || "").trim())
+        .filter((v) => v !== ""),
+    ),
+  ].sort();
+
   return (
     <div className="container-fluid">
       {/* Search and Filter Controls */}
@@ -860,6 +928,45 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
             <option value="no">No </option>
           </select>
         </div>
+        <div className="col-md-3 mt-2">
+          <Form.Select
+            value={propertyTypeSelect}
+            onChange={(e) => setPropertyTypeSelect(e.target.value)}
+          >
+            <option value="">All Property Types</option>
+            {propertyTypeOptions.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Form.Select>
+        </div>
+        <div className="col-md-3 mt-2">
+          <Form.Select
+            value={propertyModeSelect}
+            onChange={(e) => setPropertyModeSelect(e.target.value)}
+          >
+            <option value="">All Property Modes</option>
+            {propertyModeOptions.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </Form.Select>
+        </div>
+        <div className="col-md-3 mt-2">
+          <Form.Select
+            value={approvedByFilter}
+            onChange={(e) => setApprovedByFilter(e.target.value)}
+          >
+            <option value="">All Approved By</option>
+            {adminList.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Form.Select>
+        </div>
         <div className="col-md-2">
           <Form.Control
             type="date"
@@ -876,91 +983,100 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
-        <div className="d-flex flex-wrap gap-2 my-2">
-          <Button onClick={() => setSortOption("priceLowHigh")}>
-            Price: Low to High
-          </Button>
-          <Button onClick={() => setSortOption("priceHighLow")}>
-            Price: High to Low
-          </Button>
-          <Button onClick={() => setSortOption("oldToNew")}>
-            Date: Old to New
-          </Button>
-          <Button onClick={() => setSortOption("newToOld")}>
-            Date: New to Old
-          </Button>
-
-          <Button onClick={() => setHasLocation("yes")}>With Location</Button>
-          <Button onClick={() => setHasLocation("no")}>Without Location</Button>
-
-          <Button onClick={() => setHasPhoto("yes")}>With Photo</Button>
-          <Button onClick={() => setHasPhoto("no")}>Without Photo</Button>
-
-          <Button onClick={() => setNotViewed(true)}>Not Viewed</Button>
-
-          <Button onClick={() => setBankLoan("yes")}>Bank Loan: Yes</Button>
-          <Button onClick={() => setBankLoan("no")}>Bank Loan: No</Button>
-
-          <Button onClick={() => setPriceFilter("house30")}>
-            House below 30L
-          </Button>
-          <Button onClick={() => setPriceFilter("house30to50")}>
-            House 30L - 50L
-          </Button>
-          <Button onClick={() => setPriceFilter("plot15")}>
-            Plot below 15L
-          </Button>
-
-          <Button onClick={() => setPropertyTypeFilter("agri")}>
-            Agri Land
+        <div className="col-md-2">
+          <Button
+            variant={showAdvancedFilters ? "primary" : "outline-primary"}
+            className="w-100 text-nowrap"
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+          >
+            {showAdvancedFilters ? "Hide Filters ▲" : "Advanced Filters ▼"}
           </Button>
         </div>
 
-        <div>
+        {showAdvancedFilters && (
+          <div className="d-flex flex-wrap gap-2 my-2">
+            <Button onClick={() => setSortOption("priceLowHigh")}>
+              Price: Low to High
+            </Button>
+            <Button onClick={() => setSortOption("priceHighLow")}>
+              Price: High to Low
+            </Button>
+            <Button onClick={() => setSortOption("oldToNew")}>
+              Date: Old to New
+            </Button>
+            <Button onClick={() => setSortOption("newToOld")}>
+              Date: New to Old
+            </Button>
+
+            <Button onClick={() => setHasLocation("yes")}>With Location</Button>
+            <Button onClick={() => setHasLocation("no")}>Without Location</Button>
+
+            <Button onClick={() => setHasPhoto("yes")}>With Photo</Button>
+            <Button onClick={() => setHasPhoto("no")}>Without Photo</Button>
+
+            <Button onClick={() => setNotViewed(true)}>Not Viewed</Button>
+
+            <Button onClick={() => setBankLoan("yes")}>Bank Loan: Yes</Button>
+            <Button onClick={() => setBankLoan("no")}>Bank Loan: No</Button>
+
+            <Button onClick={() => setPriceFilter("house30")}>
+              House below 30L
+            </Button>
+            <Button onClick={() => setPriceFilter("house30to50")}>
+              House 30L - 50L
+            </Button>
+            <Button onClick={() => setPriceFilter("plot15")}>
+              Plot below 15L
+            </Button>
+
+            <Button onClick={() => setPropertyTypeFilter("agri")}>
+              Agri Land
+            </Button>
+          </div>
+        )}
+
+        <div className="d-flex flex-wrap align-items-center gap-2">
           <Button variant="primary" onClick={handleSearch}>
             Search
           </Button>
-          <Button variant="secondary" onClick={handleReset} className="ms-2">
+          <Button variant="secondary" onClick={handleReset}>
             Reset
           </Button>
+          <button
+            className="btn"
+            style={{ background: "#90EE90" }}
+            onClick={handleExcelExport}
+          >
+            Download Excel
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ background: "tomato" }}
+            onClick={handlePrintt}
+          >
+            Print Page
+          </button>
+          <span
+            style={{
+              background: "brown",
+              color: "white",
+              padding: "3px 6px",
+              borderRadius: "4px",
+            }}
+          >
+            Total Records: {totalRecords}
+          </span>
+          <span
+            style={{
+              background: "black",
+              color: "white",
+              padding: "3px 6px",
+              borderRadius: "4px",
+            }}
+          >
+            Showing: {showingCount}
+          </span>
         </div>
-      </div>
-      <button
-        className="btn mb-3"
-        style={{ background: "#90EE90" }}
-        onClick={handleExcelExport}
-      >
-        Download Excel
-      </button>
-      <button
-        className="btn btn-secondary mb-3"
-        style={{ background: "tomato", marginLeft: "10px" }}
-        onClick={handlePrintt}
-      >
-        Print Page
-      </button>
-      <div className="d-inline-block ms-3 mb-3">
-        <span
-          style={{
-            background: "brown",
-            color: "white",
-            padding: "3px 6px",
-            borderRadius: "4px",
-          }}
-        >
-          Total Records: {totalRecords}
-        </span>
-        <span
-          className="ms-3"
-          style={{
-            background: "black",
-            color: "white",
-            padding: "3px 6px",
-            borderRadius: "4px",
-          }}
-        >
-          Showing: {showingCount}
-        </span>
       </div>
       {/* Property Table */}
       <div className="table-responsive" ref={tableRef}>
@@ -986,9 +1102,12 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
               <th>City</th>
               <th>Pincode</th>
               <th>CreatedBy</th>
+              <th>Added By</th>
+              <th>Approved By</th>
               <th>Created At</th>
               <th>Updated At</th>
               <th>Mandatory</th>
+              <th>Bulk Upload</th>
               <th>Status</th>
               <th>Set PPCID Status</th>
               <th>Set PPCID Assigned Date</th>
@@ -1023,7 +1142,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
                     <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="45" className="text-center">
+                <td colSpan="46" className="text-center">
                   No properties found.
                 </td>
               </tr>
@@ -1068,7 +1187,7 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
                         prop.otpStatus !== "verified" || !prop.isVerifiedUser ? "text-danger" : ""
                       }`}
                     >
-                      {prop.phoneNumber}
+                      <PhoneCell phone={prop.phoneNumber} type="owner" ppcId={prop.ppcId} />
                     </td>
                     <td>{prop.otpStatus}</td>
                     <td>{prop.isVerifiedUser ? "True" : "False"}</td>
@@ -1078,9 +1197,12 @@ const taggedFree = freeData.map((item) => ({ ...item, _paymentType: "Free" }));
                     <td>{prop.city}</td>
                     <td>{prop.pinCode || ""}</td>
                     <td>{prop.createdBy}</td>
+                    <td>{prop.addedBy || "-"}</td>
+                    <td>{prop.approvedBy || "-"}</td>
                     <td>{prop.createdAt ? new Date(prop.createdAt).toLocaleDateString() : ""}</td>
                     <td>{prop.updatedAt ? new Date(prop.updatedAt).toLocaleDateString() : ""}</td>
                     <td>{prop.required}</td>
+                    <td>{prop.bulkUploadId ? 'Yes' : 'No'}</td>
                     <td>{prop.status}</td>
                     <td>{prop.setPpcId ? "True" : "False"}</td>
                     <td>{prop.setPpcIdAssignedAt ? new Date(prop.setPpcIdAssignedAt).toLocaleDateString() : "N/A"}</td>

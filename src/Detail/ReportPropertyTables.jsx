@@ -46,19 +46,16 @@ const itemsPerPage = 30;
     const handleDelete = async (ppcId) => {
         if (window.confirm(`Are you sure you want to delete PPC ID: ${ppcId}?`)) {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-free-property/${ppcId}`, {
-                    method: 'PUT',
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-reportproperty/${ppcId}`, {
+                    method: 'DELETE',
                 });
                 const data = await response.json();
                 alert(data.message);
-    
-                setReportedProperties(prev =>
-                    prev.map(item =>
-                        item.ppcId === ppcId ? { ...item, isDeleted: true } : item
-                    )
-                );
+
+                // Remove the deleted reported-property row from the table
+                setReportedProperties(prev => prev.filter(item => item.ppcId !== ppcId));
             } catch (error) {
-                alert('Failed to delete the property.');
+                alert('Failed to delete the reported property.');
             }
         }
     };

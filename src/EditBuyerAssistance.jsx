@@ -17,6 +17,10 @@ import {
 import imge from "./Assets/ppbuyer.png";
 import minprice from "./Assets/Price Mini-01.png";
 import maxprice from "./Assets/Price maxi-01.png";
+import { cleanPriceValue, numToIndianWords } from "./utils/priceUtils";
+import PriceInput from "./components/PriceInput";
+import AreaPincodeFields from "./components/AreaPincodeFields";
+import AlertModal from "./components/AlertModal";
 
 
 const EditBuyerAssistance = () => {
@@ -25,6 +29,7 @@ const EditBuyerAssistance = () => {
     altPhoneNumber: "",
     city: "",
     area: "",
+    pincode: "",
     loanInput: "",
     minPrice: "",
     maxPrice: "",
@@ -52,6 +57,7 @@ const ba_id = Number(location.state?.ba_id); // 🔁 Convert to Number
   const [dataList, setDataList] = useState({});
   const [loading, setLoading] = useState(true);
   const [allowedRoles, setAllowedRoles] = useState([]);
+  const [validationErrors, setValidationErrors] = useState([]);
 
   // Fetch initial data
   useEffect(() => {
@@ -71,6 +77,14 @@ const ba_id = Number(location.state?.ba_id); // 🔁 Convert to Number
         acc[item.field].push(item.value);
         return acc;
       }, {});
+      // Clean stray trailing "1" from legacy price values (e.g. "50001" -> "50000")
+      // and dedupe in case multiple raw values clean to the same number.
+      if (groupedData.minPrice) {
+        groupedData.minPrice = Array.from(new Set(groupedData.minPrice.map(cleanPriceValue)));
+      }
+      if (groupedData.maxPrice) {
+        groupedData.maxPrice = Array.from(new Set(groupedData.maxPrice.map(cleanPriceValue)));
+      }
       setDataList(groupedData);
     } catch (error) {
     }
@@ -81,7 +95,15 @@ const ba_id = Number(location.state?.ba_id); // 🔁 Convert to Number
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/fetch-buyerAssistance/${ba_id}`);
       if (res.data && res.data.data) {
-        setFormData(prev => ({ ...prev, ...res.data.data }));
+        const incoming = res.data.data;
+        // Normalize any legacy "50001"-style price into the cleaned form so the
+        // dropdown's selected value matches a current option.
+        setFormData(prev => ({
+          ...prev,
+          ...incoming,
+          minPrice: incoming.minPrice ? cleanPriceValue(incoming.minPrice) : incoming.minPrice,
+          maxPrice: incoming.maxPrice ? cleanPriceValue(incoming.maxPrice) : incoming.maxPrice,
+        }));
       } else {
       }
     } catch (error) {
@@ -111,6 +133,19 @@ const ba_id = Number(location.state?.ba_id); // 🔁 Convert to Number
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Phone Number is mandatory — short-circuit before hitting the API.
+    const errors = [];
+    if (!formData.phoneNumber) {
+      errors.push("Phone Number is required");
+    } else if (!/^\d{10}$/.test(String(formData.phoneNumber).trim())) {
+      errors.push("Phone Number must be 10 digits");
+    }
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
     try {
       if (ba_id) {
         // ✅ Update existing request
@@ -127,6 +162,7 @@ await axios.put(`${process.env.REACT_APP_API_URL}/update-buyer-Assistance/${ba_i
         altPhoneNumber: "",
         city: "",
         area: "",
+        pincode: "",
         loanInput: "",
         minPrice: "",
         maxPrice: "",
@@ -218,6 +254,14 @@ await axios.put(`${process.env.REACT_APP_API_URL}/update-buyer-Assistance/${ba_i
 
   return (
     <div className="container">
+      <AlertModal
+        open={validationErrors.length > 0}
+        title="Please fill the following"
+        messages={validationErrors}
+        onClose={() => setValidationErrors([])}
+        variant="warning"
+      />
+
       {/* Property Assistance Form */}
       <div className="p-3" style={{ fontFamily: "Inter, sans-serif" }}>
         <img src={imge} alt="" className="header-image" style={{ width: '100%' }} />
@@ -231,174 +275,34 @@ await axios.put(`${process.env.REACT_APP_API_URL}/update-buyer-Assistance/${ba_i
           <div className="row mb-3 justify-content-between">
             <div className="col-6 pe-3">
               <label htmlFor="minPrice">Min Price</label>
-              <div className="input-group">
-                <button
-                  type="button"
-                  style={{ border: "1px solid #2F747F" }}
-                  className="btn w-100 d-flex justify-content-between align-items-center m-0 text-muted"
-                  onClick={() => toggleDropdown("minPrice")}
-                >
-                  <img src={minprice} alt="" /> {formData.minPrice || "Select minPrice"}
-                  <FaChevronDown color="#2F747F" />
-                </button>
-              </div>
-
-              {dropdownState.activeDropdown === "minPrice" && (
-                <div
-                  className="dropdown-popup"
-                  style={{
-                    position: 'fixed',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundColor: '#E9F7F2',
-                    width: '100%',
-                    maxWidth: '350px',
-                    padding: '10px',
-                    zIndex: 10,
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                    borderRadius: '8px',
-                    overflowY: 'auto',
-                    maxHeight: '50vh',
-                    animation: 'popupOpen 0.3s ease-in-out',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      className="form-control m-0 mt-2"
-                      placeholder="Filter options..."
-                      value={dropdownState.filterText}
-                      onChange={(e) => setDropdownState((prevState) => ({ ...prevState, filterText: e.target.value }))}
-                      style={{
-                        width: '80%',
-                        padding: '5px',
-                        background: "#C0DFDA",
-                        border: "none",
-                        outline: "none"
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => toggleDropdown()}
-                      style={{
-                        cursor: 'pointer',
-                        border: 'none',
-                        background: 'none',
-                      }}
-                    >
-                      <FaTimes size={18} color="red" />
-                    </button>
-                  </div>
-
-                  <ul className="list-group mt-2 w-100">
-                    {(dataList.minPrice || [])
-                      .filter(option => option.toLowerCase().includes(dropdownState.filterText.toLowerCase()))
-                      .map((option, index) => (
-                        <li
-                          key={index}
-                          className="list-group-item list-group-item-action d-flex align-items-center"
-                          onClick={() => handleDropdownSelect("minPrice", option)}
-                          style={{
-                            padding: '5px',
-                            cursor: 'pointer',
-                            color: "#26794A",
-                            marginBottom: '5px',
-                          }}
-                        >
-                          {option}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
+              <PriceInput
+                name="minPrice"
+                value={formData.minPrice || ""}
+                onChange={(v) => setFormData((prev) => ({ ...prev, minPrice: v }))}
+                options={dataList.minPrice || []}
+                placeholder="Select or type Min Price"
+                iconLeft={<img src={minprice} alt="" />}
+              />
             </div>
 
             <div className="col-6 pe-3">
               <label htmlFor="maxPrice">Max Price</label>
-              <div className="input-group">
-                <button
-                  type="button"
-                  style={{ border: "1px solid #2F747F" }}
-                  className="btn w-100 d-flex justify-content-between align-items-center m-0 text-muted"
-                  onClick={() => toggleDropdown("maxPrice")}
-                >
-                  <img src={maxprice} alt="" /> {formData.maxPrice || "Select maxPrice"}
-                  <FaChevronDown color="#2F747F" />
-                </button>
-              </div>
-              {dropdownState.activeDropdown === "maxPrice" && (
-                <div
-                  className="dropdown-popup"
-                  style={{
-                    position: 'fixed',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundColor: '#E9F7F2',
-                    width: '100%',
-                    maxWidth: '350px',
-                    padding: '10px',
-                    zIndex: 10,
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                    borderRadius: '8px',
-                    overflowY: 'auto',
-                    maxHeight: '50vh',
-                    animation: 'popupOpen 0.3s ease-in-out',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      style={{
-                        width: '80%',
-                        padding: '5px',
-                        background: "#C0DFDA",
-                        border: "none",
-                        outline: "none"
-                      }}
-                      className="form-control mt-2"
-                      placeholder="Filter options..."
-                      value={dropdownState.filterText}
-                      onChange={(e) => setDropdownState(prev => ({ ...prev, filterText: e.target.value }))}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => toggleDropdown()}
-                      style={{
-                        cursor: 'pointer',
-                        border: 'none',
-                        background: 'none',
-                      }}
-                    >
-                      <FaTimes size={18} color="red" />
-                    </button>
-                  </div>
-                  <ul className="list-group mt-2 w-100">
-                    {(dataList.maxPrice || []).filter(option => option.toLowerCase().includes(dropdownState.filterText.toLowerCase())).map((option, index) => (
-                      <li
-                        key={index}
-                        style={{
-                          padding: '5px',
-                          cursor: 'pointer',
-                          color: "#26794A",
-                          marginBottom: '5px',
-                        }}
-                        className="list-group-item list-group-item-action d-flex align-items-center"
-                        onClick={() => handleDropdownSelect("maxPrice", option)}
-                      >
-                        {option}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <PriceInput
+                name="maxPrice"
+                value={formData.maxPrice || ""}
+                onChange={(v) => setFormData((prev) => ({ ...prev, maxPrice: v }))}
+                options={dataList.maxPrice || []}
+                placeholder="Select or type Max Price"
+                iconLeft={<img src={maxprice} alt="" />}
+              />
             </div>
           </div>
 
           {/* Phone Number */}
           <div className="col-12 mb-3">
-            <label htmlFor="phoneNumber">Phone Number</label>
+            <label htmlFor="phoneNumber">
+              Phone Number <span style={{ color: "red" }}>*</span>
+            </label>
             <div
               className="input-card p-0 rounded-1"
               style={{
@@ -762,31 +666,14 @@ await axios.put(`${process.env.REACT_APP_API_URL}/update-buyer-Assistance/${ba_i
             )}
           </div>
 
-          {/* Area */}
-          <div className="col-12 mb-3">
-            <label htmlFor="area">Area</label>
-            <div
-              className="input-card p-0 rounded-1"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                border: '1px solid #2F747F',
-                background: "#fff"
-              }}
-            >
-              <FaLandmark className="input-icon" style={{ color: '#2F747F', marginLeft: "10px" }} />
-              <input
-                type="text"
-                name="area"
-                value={formData.area}
-                onChange={handleInputChange}
-                className="form-input m-0"
-                placeholder="Enter Area"
-                style={{ flex: '1 0 80%', padding: '8px', fontSize: '14px', border: 'none', outline: 'none' }}
-              />
-            </div>
+          {/* Area + Pincode (linked, with Puducherry suggestions) */}
+          <div className="col-12">
+            <AreaPincodeFields
+              area={formData.area}
+              pincode={formData.pincode}
+              onAreaChange={(v) => setFormData((prev) => ({ ...prev, area: v }))}
+              onPincodeChange={(v) => setFormData((prev) => ({ ...prev, pincode: v }))}
+            />
           </div>
 
           {/* Area Unit */}

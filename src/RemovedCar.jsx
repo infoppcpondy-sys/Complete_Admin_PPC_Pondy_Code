@@ -5,6 +5,7 @@ import moment from "moment/moment";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import PhoneCell from "./components/PhoneCell";
 
 const DeletedPropertiesTable = () => {
   const [properties, setProperties] = useState([]);
@@ -153,14 +154,17 @@ const DeletedPropertiesTable = () => {
         (prop) => statusProperties[prop.ppcId] === statusFilter,
       );
     }
-    if (fromDate) {
-      const start = new Date(fromDate);
-      result = result.filter((prop) => new Date(prop.createdAt) >= start);
-    }
-
-    if (endDate) {
-      const end = new Date(endDate);
-      result = result.filter((prop) => new Date(prop.createdAt) <= end);
+    if (fromDate || endDate) {
+      result = result.filter((prop) => {
+        if (!prop.createdAt) return false;
+        const created = new Date(prop.createdAt);
+        const createdDate = `${created.getFullYear()}-${String(
+          created.getMonth() + 1,
+        ).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
+        const matchStart = !fromDate || createdDate >= fromDate;
+        const matchEnd = !endDate || createdDate <= endDate;
+        return matchStart && matchEnd;
+      });
     }
 
     setFiltered(result);
@@ -205,18 +209,29 @@ const DeletedPropertiesTable = () => {
   };
 
   const handleUndo = async (ppcId) => {
-    const restoredStatus = previousStatuses[ppcId] || "incomplete";
+    const isConfirmed = window.confirm(
+      "Restore this property to Pre-Approved Property?",
+    );
+    if (!isConfirmed) return;
 
     try {
+      // 1. Clear the deletion flags on the backend (isDeleted = false, etc.)
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/admin-undo-delete`,
+        {},
+        { params: { ppcId } },
+      );
+
+      // 2. Restore status to "complete" so the property appears under Pre-Approved Property
       await axios.put(
         `${process.env.REACT_APP_API_URL}/update-property-status`,
         {
           ppcId,
-          status: restoredStatus,
+          status: "complete",
         },
       );
 
-      // Remove it from list since status is no longer 'delete'
+      // Remove it from the Removed Properties list
       setFiltered((prev) => prev.filter((prop) => prop.ppcId !== ppcId));
       setProperties((prev) => prev.filter((prop) => prop.ppcId !== ppcId));
 
@@ -232,6 +247,8 @@ const DeletedPropertiesTable = () => {
         delete updated[ppcId];
         return updated;
       });
+
+      alert("Property restored to Pre-Approved Property successfully.");
     } catch (error) {
       alert("Failed to undo delete.");
     }
@@ -284,6 +301,61 @@ const DeletedPropertiesTable = () => {
     setProperties((prev) => prev.filter((prop) => prop.ppcId !== ppcId));
 
     alert("Property permanently deleted successfully.");
+  };
+
+  // Bulk permanent-delete every property currently visible (after filters).
+  // Calls the backend /bulk-permanent-delete which archives each property to
+  // DeletedAddModel and then removes it from AddModel in a single round-trip.
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const handleBulkPermanentDelete = async () => {
+    if (!filtered || filtered.length === 0) {
+      alert("No properties to delete.");
+      return;
+    }
+
+    const adminName = reduxAdminName || localStorage.getItem("adminName");
+    if (!adminName) {
+      alert("Admin name is missing. Please log in again.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to permanently delete all ${filtered.length} shown property(s)? This cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
+    const ppcIds = filtered.map((p) => p.ppcId).filter(Boolean);
+
+    setBulkDeleting(true);
+    try {
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/bulk-permanent-delete`,
+        { data: { ppcIds, deletedBy: adminName } }
+      );
+
+      const { deleted = [], notFound = [], failed = [] } = response.data || {};
+      const deletedSet = new Set(deleted);
+
+      // Drop successfully deleted rows from local state. Leave the rest visible.
+      setFiltered((prev) => prev.filter((p) => !deletedSet.has(p.ppcId)));
+      setProperties((prev) => prev.filter((p) => !deletedSet.has(p.ppcId)));
+
+      const summary = [
+        `${deleted.length} property(s) permanently deleted.`,
+        notFound.length ? `${notFound.length} not found.` : "",
+        failed.length ? `${failed.length} failed.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      alert(summary);
+    } catch (error) {
+      alert(
+        error?.response?.data?.message ||
+          "Failed to bulk delete. Please try again."
+      );
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const reduxAdminName = useSelector((state) => state.admin.name);
@@ -452,7 +524,48 @@ const DeletedPropertiesTable = () => {
       >
         Print
       </button>
-      <h4>Removed Properties</h4>
+      {/* Bulk delete button — hidden for now. Handler + backend route are
+          still wired up; un-comment to bring it back. */}
+      {/* <button
+        className="btn btn-danger mb-3"
+        style={{ marginLeft: "10px" }}
+        onClick={handleBulkPermanentDelete}
+        disabled={
+          bulkDeleting || !filtered || filtered.length === 0
+        }
+        title="Permanently delete all rows currently shown (use the filters above to narrow the set)"
+      >
+        {bulkDeleting
+          ? "Deleting..."
+          : `Bulk Delete (${(filtered || []).length})`}
+      </button> */}
+      <div className="d-flex align-items-center gap-3 mb-2 flex-wrap">
+        <h4 className="mb-0">Removed Properties</h4>
+        <span
+          style={{
+            background: "#6c757d",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Total: {properties.length} Records
+        </span>
+        <span
+          style={{
+            background: "#007bff",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Showing: {filtered.length} Records
+        </span>
+      </div>
       <div ref={tableRef}>
         <Table
           striped
@@ -506,7 +619,7 @@ const DeletedPropertiesTable = () => {
                   >
                     {prop.ppcId}
                   </td>
-                  <td>{prop.phoneNumber}</td>
+                  <td><PhoneCell phone={prop.phoneNumber} type="owner" ppcId={prop.ppcId} /></td>
                   <td>{prop.city}</td>
                   <td>
                     <span

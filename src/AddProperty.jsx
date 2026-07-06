@@ -1,4 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import {
+  saveDraft,
+  loadDraft,
+  clearDraft,
+  isDraftMeaningful,
+  DRAFT_TTL_MS,
+} from "./utils/addPropertyDraft";
 import axios from "axios";
 import { Button } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -24,7 +31,7 @@ import {
   FaCity,
   FaTimes,
 } from "react-icons/fa";
-import { FaRegAddressCard } from "react-icons/fa6";
+import { FaRegAddressCard, FaCheck } from "react-icons/fa6";
 import {
   MdLocationOn,
   MdOutlineMeetingRoom,
@@ -125,6 +132,118 @@ function AddProperty() {
   const [videos, setVideos] = useState([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [uploadingVideos, setUploadingVideos] = useState(false);
+
+  // ── Draft auto-save ────────────────────────────────────────────────────
+  // pendingDraft holds a previously-saved draft until the user clicks
+  // Restore or Discard. While it's non-null we don't auto-save (otherwise
+  // we'd immediately overwrite the saved draft with the current blank
+  // form). draftReady gates the auto-save effect so it doesn't fire on
+  // initial mount before we've checked for a saved draft.
+  const [pendingDraft, setPendingDraft] = useState(null);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftStatus, setDraftStatus] = useState(""); // small UI hint
+
+  // On mount: see if a draft exists from a previous session.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const draft = await loadDraft();
+      if (cancelled) return;
+      if (isDraftMeaningful(draft)) {
+        setPendingDraft(draft);
+      } else {
+        // No meaningful draft — clear any junk and start auto-saving.
+        if (draft) await clearDraft();
+        setDraftReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleRestoreDraft = () => {
+    if (!pendingDraft) return;
+    if (pendingDraft.formData) {
+      setFormData((prev) => ({ ...prev, ...pendingDraft.formData }));
+    }
+    if (Array.isArray(pendingDraft.photos)) {
+      setPhotos(pendingDraft.photos);
+    }
+    if (Array.isArray(pendingDraft.videos)) {
+      setVideos(pendingDraft.videos);
+    }
+    if (typeof pendingDraft.selectedPhotoIndex === "number") {
+      setSelectedPhotoIndex(pendingDraft.selectedPhotoIndex);
+    }
+    if (pendingDraft.ppcId) {
+      setPpcId(pendingDraft.ppcId);
+    }
+    setPendingDraft(null);
+    setDraftReady(true);
+    setDraftStatus("Draft restored");
+  };
+
+  const handleDiscardDraft = async () => {
+    await clearDraft();
+    setPendingDraft(null);
+    setDraftReady(true);
+    setDraftStatus("");
+  };
+
+  // Auto-expire the restore prompt. If the user neither restores nor discards
+  // a found draft, clear it automatically once it crosses the TTL (measured
+  // from when it was last saved). This stops a stale draft from lingering on a
+  // shared PC or in an abandoned second tab.
+  useEffect(() => {
+    if (!pendingDraft) return;
+    const savedTime = pendingDraft.savedAt
+      ? new Date(pendingDraft.savedAt).getTime()
+      : Date.now();
+    const remaining = DRAFT_TTL_MS - (Date.now() - savedTime);
+    const timer = setTimeout(() => {
+      handleDiscardDraft();
+    }, Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [pendingDraft]);
+
+  // Auto-save (debounced ~800 ms). Only runs once draftReady is true,
+  // i.e. after the user has decided what to do with any prior draft.
+  useEffect(() => {
+    if (!draftReady) return;
+
+    const meaningful =
+      photos.length > 0 ||
+      videos.length > 0 ||
+      Object.values(formData).some(
+        (v) => v !== "" && v !== null && v !== undefined
+      );
+
+    if (!meaningful) return;
+
+    const timer = setTimeout(async () => {
+      const ok = await saveDraft({
+        formData,
+        photos,
+        videos,
+        selectedPhotoIndex,
+        ppcId,
+      });
+      if (ok) {
+        const ts = new Date().toLocaleTimeString();
+        setDraftStatus(`Draft auto-saved at ${ts}`);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [
+    draftReady,
+    formData,
+    photos,
+    videos,
+    selectedPhotoIndex,
+    ppcId,
+  ]);
 
   useEffect(() => {
     if (!window.google) return;
@@ -682,8 +801,11 @@ function AddProperty() {
   };
   const removePhoto = (index) => {
     setPhotos(photos.filter((_, i) => i !== index));
+    // Keep the "default" pointer on the same photo after the list reflows.
     if (index === selectedPhotoIndex) {
       setSelectedPhotoIndex(0);
+    } else if (index < selectedPhotoIndex) {
+      setSelectedPhotoIndex(selectedPhotoIndex - 1);
     }
   };
 
@@ -787,8 +909,17 @@ function AddProperty() {
       // Append PPC-ID (existing or newly generated)
       formDataToSend.append("ppcId", newPpcId);
 
-      // Append status as Complete
-      formDataToSend.append("status", "Complete");
+      // Note: status is intentionally NOT sent here. The /update-property
+      // route computes it server-side via an isComplete check on the
+      // required fields and writes "complete" or "incomplete". Sending
+      // "Complete" (capital C) used to fail Mongoose enum validation.
+
+      // Stamp the logged-in admin who is adding this property
+      if (adminName) {
+        formDataToSend.append("addedBy", adminName);
+        formDataToSend.append("addedByRole", adminRole || "");
+        formDataToSend.append("addedAt", new Date().toISOString());
+      }
 
       // Append form fields
       Object.keys(formData).forEach((key) => {
@@ -822,6 +953,9 @@ function AddProperty() {
       );
 
       alert(propertyResponse.data.message);
+      // Submission succeeded — the property is on the server now, so the
+      // local draft is stale. Wipe it so the next visit starts clean.
+      await clearDraft();
       navigate("/dashboard/preapproved-car");
     } catch (error) {
       alert("An error occurred while submitting the property data.");
@@ -1456,6 +1590,90 @@ function AddProperty() {
 
   return (
     <div className="d-flex align-items-center justify-content-center">
+      {/* Draft restore prompt — shown once on mount if a previous session
+          left a non-empty draft in IndexedDB. User must choose before the
+          form auto-saves anything new. */}
+      {pendingDraft && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1050,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "10px",
+              padding: "24px",
+              width: "min(420px, 92vw)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h5 className="fw-bold mb-2">Unsaved draft found</h5>
+            <p className="text-muted mb-3" style={{ fontSize: "14px" }}>
+              You started filling this form earlier and didn't submit it.
+              {pendingDraft.savedAt && (
+                <>
+                  {" "}
+                  Last saved{" "}
+                  <strong>
+                    {new Date(pendingDraft.savedAt).toLocaleString()}
+                  </strong>
+                  .
+                </>
+              )}{" "}
+              Restore it, or discard and start fresh?
+            </p>
+            <ul
+              className="text-muted mb-3"
+              style={{ fontSize: "13px", paddingLeft: "18px" }}
+            >
+              <li>
+                Photos:{" "}
+                {Array.isArray(pendingDraft.photos)
+                  ? pendingDraft.photos.length
+                  : 0}
+              </li>
+              <li>
+                Videos:{" "}
+                {Array.isArray(pendingDraft.videos)
+                  ? pendingDraft.videos.length
+                  : 0}
+              </li>
+              <li>
+                Filled fields:{" "}
+                {pendingDraft.formData
+                  ? Object.values(pendingDraft.formData).filter(
+                      (v) => v !== "" && v !== null && v !== undefined
+                    ).length
+                  : 0}
+              </li>
+            </ul>
+            <div className="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={handleDiscardDraft}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleRestoreDraft}
+              >
+                Restore Draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         style={{
           width: "100%",
@@ -1467,6 +1685,14 @@ function AddProperty() {
         }}
       >
         <h1>Property Management</h1>
+        {draftStatus && (
+          <p
+            className="text-muted mb-2"
+            style={{ fontSize: "12px", fontStyle: "italic" }}
+          >
+            {draftStatus}
+          </p>
+        )}
         <form className="addForm" onSubmit={handleSubmit}>
           <p
             className="p-3"
@@ -1522,31 +1748,126 @@ function AddProperty() {
               <div className="uploaded-photos">
                 <h4>Uploaded Photos</h4>
                 <div className="uploaded-photos-grid">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="uploaded-photo-item">
-                      <input
-                        type="radio"
-                        name="selectedPhoto"
-                        className="me-1"
-                        checked={selectedPhotoIndex === index}
-                        onChange={() => handlePhotoSelect(index)}
-                      />
-
-                      <img
-                        src={URL.createObjectURL(photo)}
-                        alt="Uploaded"
-                        className="uploaded-photo mb-3"
-                      />
-                      <button
-                        style={{ border: "none" }}
-                        className="position-absolute top-0 end-0 btn m-0 p-1"
-                        onClick={() => removePhoto(index)}
+                  {photos.map((photo, index) => {
+                    const isDefault = selectedPhotoIndex === index;
+                    const ACCENT = "#4FC04F"; // bright green for ring + badges
+                    return (
+                      <div
+                        key={index}
+                        className="uploaded-photo-item"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handlePhotoSelect(index)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handlePhotoSelect(index);
+                          }
+                        }}
+                        title={
+                          isDefault
+                            ? "Default photo"
+                            : "Click to set as default"
+                        }
+                        style={{
+                          cursor: "pointer",
+                          padding: "14px",
+                          borderRadius: "14px",
+                          border: isDefault
+                            ? `3px solid ${ACCENT}`
+                            : "3px solid transparent",
+                          background: isDefault ? "#E9FBE9" : "transparent",
+                          transition:
+                            "border-color 0.2s ease, background 0.2s ease",
+                        }}
                       >
-                        <IoCloseCircle size={20} color="#F22952" />
-                      </button>
-                      {/* </div> */}
-                    </div>
-                  ))}
+                        {/* Hidden radio retained for form semantics */}
+                        <input
+                          type="radio"
+                          name="selectedPhoto"
+                          checked={isDefault}
+                          onChange={() => handlePhotoSelect(index)}
+                          style={{
+                            position: "absolute",
+                            opacity: 0,
+                            pointerEvents: "none",
+                          }}
+                        />
+
+                        <img
+                          src={URL.createObjectURL(photo)}
+                          alt="Uploaded"
+                          className="uploaded-photo mb-0"
+                        />
+
+                        {/* Top-left green check badge — only on the default photo */}
+                        {isDefault && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "2px",
+                              left: "2px",
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "50%",
+                              background: ACCENT,
+                              color: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <FaCheck size={12} />
+                          </span>
+                        )}
+
+                        {/* Bottom-center "DEFAULT" pill */}
+                        {isDefault && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              bottom: "18px",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              background: ACCENT,
+                              color: "#fff",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "3px 12px",
+                              borderRadius: "12px",
+                              letterSpacing: "0.5px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <FaCheck size={10} /> DEFAULT
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          style={{
+                            border: "none",
+                            background: "#fff",
+                            borderRadius: "50%",
+                            lineHeight: 0,
+                          }}
+                          className="position-absolute top-0 end-0 m-0 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePhoto(index);
+                          }}
+                        >
+                          <IoCloseCircle size={24} color="#F22952" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )

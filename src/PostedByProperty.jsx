@@ -6,6 +6,7 @@ import moment from "moment";
 import { useNavigate } from "react-router-dom";
 import { Table } from "react-bootstrap";
 import { MdDeleteForever, MdUndo } from "react-icons/md";
+import PhoneCell from "./components/PhoneCell";
 
 const PostedByProperty = () => {
   const [data, setData] = useState([]);
@@ -328,7 +329,7 @@ useEffect(() => {
                 state: { ppcId: property.ppcId, phoneNumber: property.phoneNumber },
               })
             }>{property.ppcId}</td>
-        <td>{property.phoneNumber}</td>
+        <td><PhoneCell phone={property.phoneNumber} type="owner" ppcId={property.ppcId} /></td>
         <td>{property.propertyMode || "N/A"}</td>
         <td>{property.propertyType || "N/A"}</td>
         <td>₹{property.price}</td>

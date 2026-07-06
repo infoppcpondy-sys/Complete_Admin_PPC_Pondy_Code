@@ -12,6 +12,7 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import autoTable from "jspdf-autotable"; // <-- This is the critical missing part
+import PhoneCell from "./components/PhoneCell";
 
 
 
@@ -447,7 +448,7 @@ const exportToExcel = () => {
                                 state: { ppcId: property.ppcId, phoneNumber: property.phoneNumber },
                               })
                             }className="sticky-col sticky-col-1">{property.ppcId}</td>
-          <td className="sticky-col sticky-col-2">{property.phoneNumber}</td>
+          <td className="sticky-col sticky-col-2"><PhoneCell phone={property.phoneNumber} type="owner" ppcId={property.ppcId} /></td>
           <td>{property.propertyMode || "N/A"}</td>
           <td>{property.propertyType || "N/A"}</td>
           <td>₹{property.price}</td>

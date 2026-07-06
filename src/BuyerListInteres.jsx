@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Table } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerAssistanceInterestsTable = () => {
   const [assistanceInterests, setAssistanceInterests] = useState([]);
@@ -163,7 +164,7 @@ const handleReset = () => {
                 filteredInterests.map((interest, index) => (
                   <tr key={index}>
                     <td>{interest.ba_id}</td>
-                    <td>{interest.phoneNumber}</td>
+                    <td><PhoneCell phone={interest.phoneNumber} type="tenant" ba_id={interest.ba_id} /></td>
                     <td>{interest.interestedUserPhone ? interest.interestedUserPhone.join(", ") : "N/A"}</td> 
                     <td>{interest.city}</td>
                     <td>{interest.area}</td>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { toast, ToastContainer } from 'react-toastify';
-import { FaUser, FaLock, FaBuilding, FaPhone, FaIdCard, FaTachometerAlt, FaHome, FaClipboard, FaTag } from 'react-icons/fa';
+import { FaUser, FaLock, FaBuilding, FaPhone, FaIdCard, FaTachometerAlt, FaHome, FaTag } from 'react-icons/fa';
 import 'react-toastify/dist/ReactToastify.css';
 import moment from 'moment';
 import { useSelector } from 'react-redux';
@@ -14,7 +14,6 @@ const AdminUpdate = () => {
   const [updateName, setUpdateName] = useState('');
   const [updatePassword, setUpdatePassword] = useState('');
   const [updateRole, setUpdateRole] = useState('');
-  const [updateUserType, setUpdateUserType] = useState('');
   const [updateAddress, setUpdateAddress] = useState('');
   const [updateOffice, setUpdateOffice] = useState('');
   const [updateJobType, setUpdateJobType] = useState('');
@@ -178,24 +177,6 @@ useEffect(() => {
                       </div>
                     </Form.Group>
 
-                    <Form.Group controlId="updateUserType">
-                      <Form.Label>User Type</Form.Label>
-                      <div className="input-group">
-                        <span className="input-group-text"><FaClipboard /></span>
-                        <Form.Control
-                          as="select"
-                          value={updateUserType}
-                          onChange={(e) => setUpdateUserType(e.target.value)}
-                          required
-                          style={{ height: '50px' }} 
-                        >
-                          <option value="">Select UserType</option>
-                          <option value="all">ALL</option>
-                          <option value="PUC">PUC</option>
-                          <option value="TUC">TUC</option>
-                        </Form.Control>
-                      </div>
-                    </Form.Group>
                   </Col>
 
                   <Col md={6}>

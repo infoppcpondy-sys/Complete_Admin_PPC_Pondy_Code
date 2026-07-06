@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { useSelector } from "react-redux";
 import { FaPrint } from "react-icons/fa";
 import { Table } from "react-bootstrap";
 
@@ -12,6 +13,13 @@ const FollowUpGetTable = () => {
   const [pendingRentIds, setPendingRentIds] = useState([]);
   const printRef = useRef();
 
+  // Logged-in admin — used to auto-fill the Admin Name on the create modal so
+  // staff don't have to re-pick themselves every time. Falls back to
+  // localStorage when Redux hasn't hydrated.
+  const reduxAdminName = useSelector((state) => state.admin?.name);
+  const loggedInAdminName =
+    reduxAdminName || localStorage.getItem("adminName") || "";
+
   // Edit follow-up state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState(null);
@@ -19,6 +27,7 @@ const FollowUpGetTable = () => {
     followupStatus: "",
     followupType: "",
     followupDate: "",
+    remarks: "",
   });
 
   // Create follow-up state
@@ -30,6 +39,7 @@ const FollowUpGetTable = () => {
     followupType: "",
     followupDate: "",
     adminName: "",
+    remarks: "",
   });
 
   // Admin names dropdown state
@@ -165,10 +175,18 @@ const FollowUpGetTable = () => {
   // Handle edit follow-up
   const handleEdit = (followUp) => {
     setEditingFollowUp(followUp);
+    // Convert stored date to local YYYY-MM-DDTHH:mm for datetime-local input
+    let dt = "";
+    if (followUp.followupDate) {
+      const d = new Date(followUp.followupDate);
+      const pad = (n) => String(n).padStart(2, "0");
+      dt = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
     setEditFormData({
       followupStatus: followUp.followupStatus,
       followupType: followUp.followupType,
-      followupDate: followUp.followupDate.split("T")[0], // Convert to date format YYYY-MM-DD
+      followupDate: dt,
+      remarks: followUp.remarks || "",
     });
 
     // Parse existing admin names
@@ -210,6 +228,7 @@ const FollowUpGetTable = () => {
           followupStatus: "",
           followupType: "",
           followupDate: "",
+          remarks: "",
         });
         setSelectedEditAdminNames([]);
         setCustomEditAdminName("");
@@ -230,7 +249,7 @@ const FollowUpGetTable = () => {
   const handleCloseModal = () => {
     setShowEditModal(false);
     setEditingFollowUp(null);
-    setEditFormData({ followupStatus: "", followupType: "", followupDate: "" });
+    setEditFormData({ followupStatus: "", followupType: "", followupDate: "", remarks: "" });
     setSelectedEditAdminNames([]);
     setCustomEditAdminName("");
     setShowEditAdminDropdown(false);
@@ -327,6 +346,7 @@ const FollowUpGetTable = () => {
               followupStatus: "Paid Closed",
               followupType: followup.followupType,
               followupDate: followup.followupDate,
+              remarks: followup.remarks,
             },
           );
           successCount++;
@@ -369,8 +389,21 @@ const FollowUpGetTable = () => {
       return;
     }
 
-    const finalAdminName = getFinalCreateAdminNames();
-    const dataToSend = { ...createFormData, adminName: finalAdminName };
+    // The user picks the date; we append the current local time (HH:mm:ss)
+    // at submit so the recorded `followupDate` is the chosen day combined
+    // with the actual save moment — strict record of time.
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const combinedFollowupDate = `${createFormData.followupDate}T${pad(
+      now.getHours()
+    )}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    // Strict record: the admin name on the saved follow-up is whoever is
+    // logged in right now — never something the user could pick.
+    const dataToSend = {
+      ...createFormData,
+      followupDate: combinedFollowupDate,
+      adminName: loggedInAdminName,
+    };
 
     try {
       const response = await axios.post(
@@ -388,6 +421,7 @@ const FollowUpGetTable = () => {
           followupType: "",
           followupDate: "",
           adminName: "",
+          remarks: "",
         });
         setSelectedAdminNames([]);
         setCustomAdminName("");
@@ -414,10 +448,31 @@ const FollowUpGetTable = () => {
       followupType: "",
       followupDate: "",
       adminName: "",
+      remarks: "",
     });
     setSelectedAdminNames([]);
     setCustomAdminName("");
     setShowCreateAdminDropdown(false);
+  };
+
+  // Open create modal — pre-fill the Admin Name with the logged-in admin and
+  // the Follow-up Date with today (user can change to schedule future). The
+  // time portion is captured at submit, not here, so it always reflects the
+  // actual save moment.
+  const handleOpenCreateModal = () => {
+    setCreateFormData({
+      rentId: "N/A",
+      phoneNumber: "",
+      followupStatus: "",
+      followupType: "",
+      followupDate: getTodayDateString(),
+      adminName: "",
+      remarks: "",
+    });
+    setSelectedAdminNames(loggedInAdminName ? [loggedInAdminName] : []);
+    setCustomAdminName("");
+    setShowCreateAdminDropdown(false);
+    setShowCreateModal(true);
   };
 
   // Handle create form input change
@@ -450,6 +505,13 @@ const FollowUpGetTable = () => {
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  // Current local datetime in YYYY-MM-DDTHH:mm for datetime-local min
+  const getNowDateTimeString = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   };
 
   // Get property status code and color based on rentId
@@ -543,7 +605,7 @@ const FollowUpGetTable = () => {
 
         <button
           className="btn btn-primary"
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleOpenCreateModal}
         >
           + Create New Follow-Up
         </button>
@@ -658,9 +720,10 @@ const FollowUpGetTable = () => {
                 <th>Phone Number</th>
                 <th>Follow-Up Status</th>
                 <th>Follow-Up Type</th>
-                <th>Follow-Up Date</th>
+                <th>Follow-Up Date &amp; Time</th>
                 <th>Follow-up Day</th>
                 <th>Admin Name</th>
+                <th>Remark</th>
                 <th>Created At</th>
                 <th>Actions</th>
               </tr>
@@ -698,7 +761,7 @@ const FollowUpGetTable = () => {
                       <td>{item.followupStatus}</td>
                       <td>{item.followupType}</td>
                       <td>
-                        {new Date(item.followupDate).toLocaleDateString()}
+                        {new Date(item.followupDate).toLocaleString()}
                       </td>
                       <td>
                         <span
@@ -715,7 +778,8 @@ const FollowUpGetTable = () => {
                         </span>
                       </td>
                       <td>{item.adminName}</td>
-                      <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                      <td style={{ textAlign: "left", maxWidth: "220px", whiteSpace: "pre-wrap" }}>{item.remarks || "-"}</td>
+                      <td>{new Date(item.createdAt).toLocaleString()}</td>
                       <td>
                         <button
                           className="btn btn-sm btn-warning"
@@ -731,93 +795,100 @@ const FollowUpGetTable = () => {
             </tbody>
           </Table>
 
-          {/* Today Follow-Up Section */}
-          <h3 className="mt-5 mb-3">Today Follow-Up</h3>
-          <Table
-            striped
-            bordered
-            hover
-            responsive
-            className="table-sm align-middle"
-          >
-            <thead className="sticky-top">
-              <tr className="bg-gray-100 text-center">
-                <th>S.No</th>
-                <th>PPC ID</th>
-                {/* <th>Property Status</th> */}
-                <th>Phone Number</th>
-                <th>Follow-Up Status</th>
-                <th>Follow-Up Type</th>
-                <th>Follow-Up Date</th>
-                <th>Follow-up Day</th>
-                <th>Admin Name</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {followups
-                .filter(
-                  (item) => getFollowUpDayStatus(item.followupDate) === "Today",
-                )
-                .map((item, index) => {
-                  const { code, backgroundColor, textColor } =
-                    getPropertyStatusDisplay(item.ppcId);
-                  return (
-                    <tr key={item._id} className="text-center">
-                      <td>{index + 1}</td>
-                      <td>{item.ppcId || "N/A"}</td>
-                      {/* <td>
-                        <span
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: "4px",
-                            backgroundColor: backgroundColor,
-                            color: textColor,
-                            fontWeight: "bold",
-                            fontSize: "13px",
-                            display: "inline-block",
-                          }}
-                        >
-                          {code}
-                        </span>
-                      </td> */}
-                      <td>{item.phoneNumber || "-"}</td>
-                      <td>{item.followupStatus}</td>
-                      <td>{item.followupType}</td>
-                      <td>
-                        {new Date(item.followupDate).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            padding: "5px 12px",
-                            borderRadius: "20px",
-                            fontSize: "12px",
-                            ...getDayStatusBadgeColor(
-                              getFollowUpDayStatus(item.followupDate),
-                            ),
-                          }}
-                        >
-                          {getFollowUpDayStatus(item.followupDate)}
-                        </span>
-                      </td>
-                      <td>{item.adminName}</td>
-                      <td>{new Date(item.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-warning"
-                          onClick={() => handleEdit(item)}
-                          style={{ marginRight: "5px" }}
-                        >
-                          ✏️ Edit
-                        </button>
-                      </td>
+          {/* Today / Future / Past Section Tables */}
+          {[
+            { label: "Today", color: "#ffc107", textColor: "#000" },
+            { label: "Future", color: "#28a745", textColor: "#fff" },
+            { label: "Past", color: "#dc3545", textColor: "#fff" },
+          ].map((section) => {
+            const rows = followups.filter(
+              (item) =>
+                item.followupStatus !== "Not Interested-Closed" &&
+                item.followupStatus !== "Paid Closed" &&
+                getFollowUpDayStatus(item.followupDate) === section.label,
+            );
+            if (rows.length === 0) return null;
+            return (
+              <div key={section.label} style={{ marginTop: "40px" }}>
+                <h3
+                  className="mt-5 mb-3"
+                  style={{
+                    color: section.color,
+                    borderBottom: `2px solid ${section.color}`,
+                    paddingBottom: "10px",
+                  }}
+                >
+                  {section.label} Follow-Up
+                </h3>
+                <Table
+                  striped
+                  bordered
+                  hover
+                  responsive
+                  className="table-sm align-middle"
+                >
+                  <thead className="sticky-top">
+                    <tr
+                      style={{
+                        backgroundColor: section.color,
+                        color: section.textColor,
+                      }}
+                    >
+                      <th>S.No</th>
+                      <th>PPC ID</th>
+                      <th>Phone Number</th>
+                      <th>Follow-Up Status</th>
+                      <th>Follow-Up Type</th>
+                      <th>Follow-Up Date &amp; Time</th>
+                      <th>Follow-up Day</th>
+                      <th>Admin Name</th>
+                      <th>Remark</th>
+                      <th>Created At</th>
+                      <th>Actions</th>
                     </tr>
-                  );
-                })}
-            </tbody>
-          </Table>
+                  </thead>
+                  <tbody>
+                    {rows.map((item, index) => (
+                      <tr key={item._id} className="text-center">
+                        <td>{index + 1}</td>
+                        <td>{item.ppcId || "N/A"}</td>
+                        <td>{item.phoneNumber || "-"}</td>
+                        <td>{item.followupStatus}</td>
+                        <td>{item.followupType}</td>
+                        <td>
+                          {new Date(item.followupDate).toLocaleString()}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              padding: "5px 12px",
+                              borderRadius: "20px",
+                              fontSize: "12px",
+                              ...getDayStatusBadgeColor(section.label),
+                            }}
+                          >
+                            {section.label}
+                          </span>
+                        </td>
+                        <td>{item.adminName}</td>
+                        <td style={{ textAlign: "left", maxWidth: "220px", whiteSpace: "pre-wrap" }}>{item.remarks || "-"}</td>
+                        <td>{new Date(item.createdAt).toLocaleString()}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning"
+                            onClick={() => handleEdit(item)}
+                            style={{ marginRight: "5px" }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -853,9 +924,10 @@ const FollowUpGetTable = () => {
                 <th>Phone Number</th>
                 <th>Follow-Up Status</th>
                 <th>Follow-Up Type</th>
-                <th>Follow-Up Date</th>
+                <th>Follow-Up Date &amp; Time</th>
                 <th>Follow-up Day</th>
                 <th>Admin Name</th>
+                <th>Remark</th>
                 <th>Created At</th>
                 <th>Actions</th>
               </tr>
@@ -913,7 +985,7 @@ const FollowUpGetTable = () => {
                       </td>
                       <td>{item.followupType}</td>
                       <td>
-                        {new Date(item.followupDate).toLocaleDateString()}
+                        {new Date(item.followupDate).toLocaleString()}
                       </td>
                       <td>
                         <span
@@ -930,7 +1002,8 @@ const FollowUpGetTable = () => {
                         </span>
                       </td>
                       <td>{item.adminName}</td>
-                      <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                      <td style={{ textAlign: "left", maxWidth: "220px", whiteSpace: "pre-wrap" }}>{item.remarks || "-"}</td>
+                      <td>{new Date(item.createdAt).toLocaleString()}</td>
                       <td>
                         <button
                           className="btn btn-sm btn-warning"
@@ -1123,11 +1196,10 @@ const FollowUpGetTable = () => {
                 Follow-up Date:
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 name="followupDate"
                 value={editFormData.followupDate}
                 onChange={handleEditFormChange}
-                min={getTodayDateString()}
                 style={{
                   padding: "10px",
                   width: "100%",
@@ -1135,6 +1207,34 @@ const FollowUpGetTable = () => {
                   borderRadius: "4px",
                   fontSize: "14px",
                   cursor: "pointer",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "25px" }}>
+              <label
+                style={{
+                  fontWeight: "bold",
+                  display: "block",
+                  marginBottom: "5px",
+                  color: "#555",
+                }}
+              >
+                Remark:
+              </label>
+              <textarea
+                name="remarks"
+                placeholder="Enter remark (optional)"
+                value={editFormData.remarks}
+                onChange={handleEditFormChange}
+                rows={3}
+                style={{
+                  padding: "10px",
+                  width: "100%",
+                  border: "2px solid #ddd",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  resize: "vertical",
                 }}
               />
             </div>
@@ -1595,8 +1695,13 @@ const FollowUpGetTable = () => {
                   color: "#555",
                 }}
               >
-                Follow-up Date: <span style={{ color: "#dc3545" }}>*</span>
+                Follow-up Date: <span style={{ color: "#dc3545" }}>*</span>{" "}
+                <span style={{ color: "#888", fontWeight: "normal", fontSize: "12px" }}>
+                  (time auto-captured at save)
+                </span>
               </label>
+              {/* User picks the date; the time portion is appended at submit
+                  in handleCreateFollowUp so it's always the actual save moment. */}
               <input
                 type="date"
                 name="followupDate"
@@ -1614,6 +1719,34 @@ const FollowUpGetTable = () => {
               />
             </div>
 
+            <div style={{ marginBottom: "15px" }}>
+              <label
+                style={{
+                  fontWeight: "bold",
+                  display: "block",
+                  marginBottom: "5px",
+                  color: "#555",
+                }}
+              >
+                Remark:
+              </label>
+              <textarea
+                name="remarks"
+                placeholder="Enter remark (optional)"
+                value={createFormData.remarks}
+                onChange={handleCreateFormChange}
+                rows={3}
+                style={{
+                  padding: "10px",
+                  width: "100%",
+                  border: "2px solid #ddd",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
             <div style={{ marginBottom: "25px" }}>
               <label
                 style={{
@@ -1623,187 +1756,28 @@ const FollowUpGetTable = () => {
                   color: "#555",
                 }}
               >
-                Admin Name:
+                Admin Name:{" "}
+                <span style={{ color: "#888", fontWeight: "normal", fontSize: "12px" }}>
+                  (auto-captured from login)
+                </span>
               </label>
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowCreateAdminDropdown(!showCreateAdminDropdown)
-                  }
-                  style={{
-                    padding: "10px",
-                    width: "100%",
-                    border: "2px solid #ddd",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                    backgroundColor: "#fff",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>
-                    {selectedAdminNames.length > 0
-                      ? `${selectedAdminNames.length} selected`
-                      : "Select Admin Names"}
-                  </span>
-                  <span style={{ fontSize: "12px" }}>▼</span>
-                </button>
-                {showCreateAdminDropdown && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      backgroundColor: "#fff",
-                      border: "2px solid #007bff",
-                      borderRadius: "4px",
-                      marginTop: "5px",
-                      zIndex: 1000,
-                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-                      maxHeight: "250px",
-                      overflowY: "auto",
-                      position: "relative",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateAdminDropdown(false)}
-                      style={{
-                        position: "absolute",
-                        top: "5px",
-                        right: "5px",
-                        backgroundColor: "transparent",
-                        border: "none",
-                        fontSize: "20px",
-                        cursor: "pointer",
-                        color: "#666",
-                        padding: "0",
-                        width: "24px",
-                        height: "24px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 1001,
-                      }}
-                      onMouseEnter={(e) => (e.target.style.color = "#000")}
-                      onMouseLeave={(e) => (e.target.style.color = "#666")}
-                    >
-                      ×
-                    </button>
-                    <div style={{ padding: "10px", paddingTop: "30px" }}>
-                      {predefinedAdminNames.map((name) => (
-                        <div
-                          key={name}
-                          style={{
-                            marginBottom: "8px",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            id={`admin_${name}`}
-                            checked={selectedAdminNames.includes(name)}
-                            onChange={() => handleCreateAdminNameChange(name)}
-                            style={{
-                              marginRight: "8px",
-                              cursor: "pointer",
-                              width: "16px",
-                              height: "16px",
-                            }}
-                          />
-                          <label
-                            htmlFor={`admin_${name}`}
-                            style={{ cursor: "pointer", marginBottom: 0 }}
-                          >
-                            {name}
-                          </label>
-                        </div>
-                      ))}
-                      <div
-                        style={{
-                          borderTop: "1px solid #ddd",
-                          marginTop: "10px",
-                          paddingTop: "10px",
-                        }}
-                      >
-                        <label
-                          style={{
-                            fontWeight: "bold",
-                            display: "block",
-                            marginBottom: "5px",
-                            fontSize: "12px",
-                            color: "#666",
-                          }}
-                        >
-                          Add Custom Name:
-                        </label>
-                        <div style={{ display: "flex", gap: "5px" }}>
-                          <input
-                            type="text"
-                            placeholder="Enter custom name"
-                            value={customAdminName}
-                            onChange={(e) => setCustomAdminName(e.target.value)}
-                            onKeyPress={(e) =>
-                              e.key === "Enter" &&
-                              handleAddCustomCreateAdminName()
-                            }
-                            style={{
-                              padding: "8px",
-                              flex: 1,
-                              border: "1px solid #ddd",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                            }}
-                          />
-                          <button
-                            onClick={handleAddCustomCreateAdminName}
-                            style={{
-                              padding: "8px 12px",
-                              backgroundColor: "#28a745",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              cursor: "pointer",
-                              fontSize: "14px",
-                              fontWeight: "600",
-                              minWidth: "40px",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.target.style.backgroundColor = "#218838")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.target.style.backgroundColor = "#28a745")
-                            }
-                            title="Add custom name"
-                          >
-                            ✓
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {selectedAdminNames.length > 0 && (
-                <div
-                  style={{
-                    marginTop: "8px",
-                    padding: "8px",
-                    backgroundColor: "#e7f3ff",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                    color: "#0066cc",
-                  }}
-                >
-                  <strong>Selected:</strong> {getFinalCreateAdminNames()}
-                </div>
-              )}
+              {/* Strict record: the admin name is whoever is currently logged
+                  in. The user can't change it on create — keeps reporting
+                  honest. The Edit modal still allows updating if needed. */}
+              <input
+                type="text"
+                value={loggedInAdminName}
+                disabled
+                style={{
+                  padding: "10px",
+                  width: "100%",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  backgroundColor: "#f9f9f9",
+                  color: "#666",
+                }}
+              />
             </div>
 
             <div

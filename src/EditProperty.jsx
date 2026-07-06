@@ -25,7 +25,7 @@ import { FaBath, FaChartArea, } from 'react-icons/fa';
 import { FaKitchenSet } from 'react-icons/fa6';
 import { BsBuildingsFill } from 'react-icons/bs';
 import { GiHouse, GiGears, GiResize } from 'react-icons/gi';
-import { FaClock, FaRegAddressCard } from 'react-icons/fa6';
+import { FaClock, FaRegAddressCard, FaCheck } from 'react-icons/fa6';
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { FcSearch } from "react-icons/fc";
@@ -91,11 +91,15 @@ function EditProperty() {
     breadth:"",
     totalArea:"",
     pinCode: "",
+    country: "",
 locationCoordinates:""
   });
 
   const [photos, setPhotos] = useState([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  // Preserve the workflow status the property had when the edit form opened
+  // so saving an edit doesn't move the property between Approved / PreApproved.
+  const [originalStatus, setOriginalStatus] = useState("");
   const [video, setVideo] = useState(null);
 const [coordinateInput, setCoordinateInput] = useState('');
           const [videos, setVideos] = useState([]);
@@ -445,12 +449,15 @@ const handleClear = () => {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/fetch-data?ppcId=${ppcId}`);
         const data = response.data.user;
       setPhotos(
-          Array.isArray(data.photos) 
-             ? data.photos.map(photo => (typeof photo === "string" ? photo : photo.photoUrl)) 
+          Array.isArray(data.photos)
+             ? data.photos.map(photo => (typeof photo === "string" ? photo : photo.photoUrl))
 
             : []
-        ); 
+        );
       setVideos(Array.isArray(data.video) ? data.video : []);
+      // Remember the property's current bucket (approved / complete / pending / …)
+      // so we can echo it back on save and keep the property where it was.
+      setOriginalStatus(data.status || "");
 
         setFormData({
           phoneNumber: data.phoneNumber || "",
@@ -496,6 +503,8 @@ const handleClear = () => {
           breadth:data.breadth || "",
           totalArea:data.totalArea || "",
           pinCode:data.pinCode || '',
+          country: data.country || "",
+          locationCoordinates: data.locationCoordinates || "",
 
         });
 
@@ -602,8 +611,11 @@ const handleClear = () => {
 
   const removePhoto = (index) => {
     setPhotos(photos.filter((_, i) => i !== index));
+    // Keep the "default" pointer on the same photo after the list reflows.
     if (index === selectedPhotoIndex) {
-      setSelectedPhotoIndex(0); 
+      setSelectedPhotoIndex(0);
+    } else if (index < selectedPhotoIndex) {
+      setSelectedPhotoIndex(selectedPhotoIndex - 1);
     }
   };
 
@@ -640,13 +652,40 @@ const handleClear = () => {
       formDataToSend.append(key, formData[key]);
     });
 
-    photos.forEach((photo) => {
+    // Preserve the property's existing bucket. Without this the backend
+    // resets the status and the property jumps between Approved / PreApproved.
+    if (originalStatus) {
+      formDataToSend.append("status", originalStatus);
+    }
+
+    // Place the user-selected default photo first so the backend treats it
+    // as the primary image. Falls back to original order if the index is bad.
+    const reorderedPhotos =
+      selectedPhotoIndex >= 0 && selectedPhotoIndex < photos.length
+        ? [
+            photos[selectedPhotoIndex],
+            ...photos.filter((_, i) => i !== selectedPhotoIndex),
+          ]
+        : photos;
+    reorderedPhotos.forEach((photo) => {
       formDataToSend.append("photos", photo);
     });
 
-   photos.forEach((photo) => {
-      formDataToSend.append("photos", photo);
+    // Multer splits multipart parts: File objects end up in req.files['photos']
+    // while existing photo URL strings end up in req.body.photos. That tears our
+    // single ordered array into two unordered halves on the server.
+    //
+    // `photoOrder` tells the backend the exact final order, using `__NEW__N`
+    // placeholders for newly uploaded files (N matches their position in
+    // req.files['photos'], which is the order we append them above).
+    let newCounter = 0;
+    const photoOrder = reorderedPhotos.map((item) => {
+      if (item instanceof File || item instanceof Blob) {
+        return `__NEW__${newCounter++}`;
+      }
+      return item; // existing photo path string from the backend
     });
+    formDataToSend.append("photoOrder", JSON.stringify(photoOrder));
 
     try {
       const response = await axios.post(
@@ -1161,15 +1200,45 @@ const shouldHideField = (fieldName) =>
           return null;
         }
 
+        const isDefault = selectedPhotoIndex === index;
+        const ACCENT = "#4FC04F"; // bright green for ring + badges
+
         return (
-          <div key={index} className="uploaded-photo-item  position-relative">
+          <div
+            key={index}
+            className="uploaded-photo-item position-relative"
+            role="button"
+            tabIndex={0}
+            onClick={() => handlePhotoSelect(index)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handlePhotoSelect(index);
+              }
+            }}
+            title={isDefault ? "Default photo" : "Click to set as default"}
+            style={{
+              cursor: "pointer",
+              padding: "14px",
+              borderRadius: "14px",
+              border: isDefault
+                ? `3px solid ${ACCENT}`
+                : "3px solid transparent",
+              background: isDefault ? "#E9FBE9" : "transparent",
+              transition: "border-color 0.2s ease, background 0.2s ease",
+            }}
+          >
+            {/* Hidden radio retained for form semantics */}
             <input
               type="radio"
               name="selectedPhoto"
-              className="position-absolute"
-              style={{ top: '-10px' }}
-        checked={selectedPhotoIndex === index}
+              checked={isDefault}
               onChange={() => handlePhotoSelect(index)}
+              style={{
+                position: "absolute",
+                opacity: 0,
+                pointerEvents: "none",
+              }}
             />
             <img
               src={photoUrl}
@@ -1177,10 +1246,71 @@ const shouldHideField = (fieldName) =>
               className="uploaded-photo m-2"
               style={{ width: "100px", height: "100px", objectFit: "cover" }}
             />
-            <button    style={{border:"none"}}
-            className="position-absolute top-0 end-0 btn m-0 p-1"
-onClick={() => removePhoto(index)}>
-                    <IoCloseCircle size={20} color="#F22952"/>
+
+            {/* Top-left green check badge — only on the default photo */}
+            {isDefault && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "2px",
+                  left: "2px",
+                  width: "26px",
+                  height: "26px",
+                  borderRadius: "50%",
+                  background: ACCENT,
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  pointerEvents: "none",
+                }}
+              >
+                <FaCheck size={12} />
+              </span>
+            )}
+
+            {/* Bottom-center "DEFAULT" pill */}
+            {isDefault && (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: "18px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: ACCENT,
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "3px 12px",
+                  borderRadius: "12px",
+                  letterSpacing: "0.5px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  pointerEvents: "none",
+                }}
+              >
+                <FaCheck size={10} /> DEFAULT
+              </span>
+            )}
+
+            <button
+              type="button"
+              style={{
+                border: "none",
+                background: "#fff",
+                borderRadius: "50%",
+                lineHeight: 0,
+              }}
+              className="position-absolute top-0 end-0 m-0 p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                removePhoto(index);
+              }}
+            >
+              <IoCloseCircle size={24} color="#F22952"/>
             </button>
           </div>
         );
@@ -2567,7 +2697,7 @@ onClick={() => removePhoto(index)}>
     <input
       type="text"
       name="area"
-      value={formData.area} readOnly
+      value={formData.area}
       onChange={handleFieldChange}
       className="form-input m-0"
       placeholder="Area"
@@ -2597,7 +2727,7 @@ onClick={() => removePhoto(index)}>
   <div className="input-card p-0 rounded-1" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%',  border: '1px solid #2F747F', background:"#fff" }}>
     <FaDoorClosed className="input-icon" style={{color: '#2F747F', marginLeft:"10px"}} />
     <input
-      type="number"
+      type="text"
       name="doorNumber"
       value={formData.doorNumber}
       onChange={handleFieldChange}

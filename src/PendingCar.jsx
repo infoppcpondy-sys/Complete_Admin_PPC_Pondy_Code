@@ -8,6 +8,7 @@ import { FaEdit, FaEye } from "react-icons/fa";
 import { MdDeleteForever } from "react-icons/md";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import PhoneCell from "./components/PhoneCell";
 
 const PendingProperties = () => {
   const [properties, setProperties] = useState([]);
@@ -20,11 +21,13 @@ const PendingProperties = () => {
   const [statusProperties, setStatusProperties] = useState({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentPpcId, setCurrentPpcId] = useState("");
+  const [currentDbId, setCurrentDbId] = useState("");
   const [currentPhoneNumber, setCurrentPhoneNumber] = useState("");
   const [deletionReason, setDeletionReason] = useState("");
   const [phoneNumberSearch, setPhoneNumberSearch] = useState("");
   // follow-up filter: "yes" for created, "no" for not created
   const [followUpFilter, setFollowUpFilter] = useState("");
+  const [bulkUploadFilter, setBulkUploadFilter] = useState("");
 
   const [followUpMap, setFollowUpMap] = useState({});
 
@@ -84,6 +87,38 @@ const PendingProperties = () => {
         });
       }
     }
+  };
+
+  // Open Create Follow-up / Create Bill in BULK mode for every bulk-uploaded
+  // property currently shown (after the active filters / search).
+  const handleBulkFollowup = () => {
+    const bulkRows = (filtered || []).filter((p) => p.bulkUploadId);
+    if (bulkRows.length === 0) {
+      alert("No bulk-uploaded properties in the current view.");
+      return;
+    }
+    navigate("/dashboard/create-followup", {
+      state: {
+        bulkMode: true,
+        bulkCount: bulkRows.length,
+        items: bulkRows.map((p) => ({ ppcId: p.ppcId, phoneNumber: p.phoneNumber })),
+      },
+    });
+  };
+
+  const handleBulkBill = () => {
+    const bulkRows = (filtered || []).filter((p) => p.bulkUploadId);
+    if (bulkRows.length === 0) {
+      alert("No bulk-uploaded properties in the current view.");
+      return;
+    }
+    navigate("/dashboard/create-bill", {
+      state: {
+        bulkMode: true,
+        bulkCount: bulkRows.length,
+        items: bulkRows.map((p) => ({ ppcId: p.ppcId, phoneNumber: p.phoneNumber })),
+      },
+    });
   };
 
   const navigate = useNavigate();
@@ -203,6 +238,13 @@ const PendingProperties = () => {
       result = result.filter((prop) => !followUpMap[prop.ppcId]);
     }
 
+    // Bulk upload filter
+    if (bulkUploadFilter === "yes") {
+      result = result.filter((prop) => !!prop.bulkUploadId);
+    } else if (bulkUploadFilter === "no") {
+      result = result.filter((prop) => !prop.bulkUploadId);
+    }
+
     setFiltered(result);
   };
 
@@ -215,12 +257,14 @@ const PendingProperties = () => {
     endDate,
     phoneNumberSearch,
     followUpFilter,
+    bulkUploadFilter,
     followUpMap,
   ]);
 
   const handleReset = () => {
     setPhoneNumberSearch("");
     setFollowUpFilter("");
+    setBulkUploadFilter("");
 
     // Reset form fields
     setPpcIdSearch("");
@@ -233,16 +277,19 @@ const PendingProperties = () => {
 
   const handleDeleteConfirm = async () => {
     try {
+      // Force delete: properties with no PPC-ID can still be removed by
+      // falling back to the Mongo _id so the backend can locate the record.
       await axios.put(
         `${process.env.REACT_APP_API_URL}/admin-delete`,
         { deletionReason },
-        { params: { ppcId: currentPpcId } },
+        { params: { ppcId: currentPpcId, id: currentDbId } },
       );
 
-      // Update local state
+      // Update local state — match by _id when available, else by ppcId.
       setProperties((prev) =>
         prev.map((prop) =>
-          prop.ppcId === currentPpcId
+          (currentDbId && prop._id === currentDbId) ||
+          (currentPpcId && prop.ppcId === currentPpcId)
             ? {
                 ...prop,
                 isDeleted: true,
@@ -253,7 +300,10 @@ const PendingProperties = () => {
         ),
       );
 
-      setStatusProperties((prev) => ({ ...prev, [currentPpcId]: "delete" }));
+      setStatusProperties((prev) => ({
+        ...prev,
+        [currentPpcId || currentDbId]: "delete",
+      }));
       setShowDeleteModal(false);
       setDeletionReason("");
       // handleSearch(); // Refresh filtered results
@@ -293,10 +343,89 @@ const PendingProperties = () => {
   };
 
   // Delete functionality
-  const handleDeleteClick = (ppcId, phoneNumber) => {
+  const handleDeleteClick = (ppcId, phoneNumber, dbId) => {
     setCurrentPpcId(ppcId);
+    setCurrentDbId(dbId || "");
     setCurrentPhoneNumber(phoneNumber);
     setShowDeleteModal(true);
+  };
+
+  // Bulk soft-delete every property currently visible (after filters).
+  // Matches the per-row delete: sets isDeleted + status='delete' so the
+  // properties move to the Removed Property bucket. Prompts once for a
+  // shared deletion reason (the backend requires one).
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const handleBulkDelete = async () => {
+    if (!filtered || filtered.length === 0) {
+      alert("No properties to delete.");
+      return;
+    }
+
+    const reason = window.prompt(
+      `Enter a deletion reason for all ${filtered.length} shown property(s):`,
+      ""
+    );
+    if (reason === null) return; // user cancelled
+    if (!reason.trim()) {
+      alert("Deletion reason is required.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Move all ${filtered.length} shown property(s) to Removed Properties? This can be undone from the Removed page.`
+    );
+    if (!confirmDelete) return;
+
+    const ppcIds = filtered.map((p) => p.ppcId).filter(Boolean);
+
+    setBulkDeleting(true);
+    try {
+      const response = await axios.put(
+        `${process.env.REACT_APP_API_URL}/admin-bulk-delete`,
+        { ppcIds, deletionReason: reason.trim() }
+      );
+
+      const { deleted = [], notFound = [] } = response.data || {};
+      const deletedSet = new Set(deleted);
+
+      // Drop deleted rows from the visible list and mark their status locally
+      // so any cached references in this page reflect the new state.
+      setFiltered((prev) => prev.filter((p) => !deletedSet.has(p.ppcId)));
+      setProperties((prev) =>
+        prev.map((p) =>
+          deletedSet.has(p.ppcId)
+            ? {
+                ...p,
+                isDeleted: true,
+                deletionReason: reason.trim(),
+                deletionDate: new Date().toISOString(),
+              }
+            : p
+        )
+      );
+      setStatusProperties((prev) => {
+        const next = { ...prev };
+        deletedSet.forEach((id) => {
+          next[id] = "delete";
+        });
+        return next;
+      });
+
+      const summary = [
+        `${deleted.length} moved to Removed Properties.`,
+        notFound.length ? `${notFound.length} not found.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      alert(summary);
+    } catch (error) {
+      alert(
+        error?.response?.data?.message ||
+          "Failed to bulk delete. Please try again."
+      );
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const reduxAdminName = useSelector((state) => state.admin.name);
@@ -413,7 +542,33 @@ const PendingProperties = () => {
 
   return (
     <div className="p-3">
-      <h4>Pending Properties</h4>
+      <div className="d-flex align-items-center gap-3 mb-2 flex-wrap">
+        <h4 className="mb-0">Pending Properties</h4>
+        <span
+          style={{
+            background: "#6c757d",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Total: {properties.length} Records
+        </span>
+        <span
+          style={{
+            background: "#007bff",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Showing: {filtered.length} Records
+        </span>
+      </div>
 
       <form
         onSubmit={(e) => e.preventDefault()}
@@ -447,8 +602,8 @@ const PendingProperties = () => {
           type="date"
           id="fromDate"
           className="form-control"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
           style={{ maxWidth: "150px" }}
         />
 
@@ -470,6 +625,17 @@ const PendingProperties = () => {
           <option value="">FollowUp All</option>
           <option value="yes">Yes</option>
           <option value="no">No</option>
+        </select>
+
+        <select
+          className="form-select"
+          value={bulkUploadFilter}
+          onChange={(e) => setBulkUploadFilter(e.target.value)}
+          style={{ maxWidth: "150px" }}
+        >
+          <option value="">All Bulk Upload</option>
+          <option value="yes">Bulk Upload: Yes</option>
+          <option value="no">Bulk Upload: No</option>
         </select>
 
         <div className="col-md-3 d-flex align-items-end">
@@ -500,6 +666,30 @@ const PendingProperties = () => {
       >
         Excel
       </button>
+      <button
+        className="btn mb-3 ms-2"
+        style={{ background: "#f0ad4e", color: "#fff", fontWeight: "bold" }}
+        onClick={handleBulkFollowup}
+      >
+        Bulk Followup ({(filtered || []).filter((p) => p.bulkUploadId).length})
+      </button>
+      <button
+        className="btn mb-3 ms-2"
+        style={{ background: "#2f747f", color: "#fff", fontWeight: "bold" }}
+        onClick={handleBulkBill}
+      >
+        Bulk Bill ({(filtered || []).filter((p) => p.bulkUploadId).length})
+      </button>
+      {/* <button
+        className="btn btn-danger mb-3 ms-2"
+        onClick={handleBulkDelete}
+        disabled={bulkDeleting || !filtered || filtered.length === 0}
+        title="Move all rows currently shown to Removed Properties (use the filters above to narrow the set)"
+      >
+        {bulkDeleting
+          ? "Deleting..."
+          : `Bulk Delete (${(filtered || []).length})`}
+      </button> */}
       {/* {showFollowUpButton && ( */}
       <div ref={tableRef}>
         <Table
@@ -520,6 +710,7 @@ const PendingProperties = () => {
               <th>Property Mode</th>
               <th>Price</th>
               <th>City</th>
+              <th>Bulk Upload</th>
               <th>Created At</th>
               <th>Status</th>
               {/* <th>Deletion Reason</th>
@@ -585,12 +776,13 @@ const PendingProperties = () => {
                     <FaEye /> {prop.views}
                   </td>
                   <td className="sticky-col sticky-col-2">
-                    {prop.phoneNumber}
+                    <PhoneCell phone={prop.phoneNumber} type="owner" ppcId={prop.ppcId} />
                   </td>
                   <td>{prop.propertyType}</td>
                   <td>{prop.propertyMode}</td>
                   <td>{prop.price}</td>
                   <td>{prop.city}</td>
+                  <td>{prop.bulkUploadId ? 'Yes' : 'No'}</td>
                   <td>{new Date(prop.createdAt).toLocaleDateString()}</td>
                   <td>{prop.status}</td>
                   {/* <td>{prop.deletionReason || "-"}</td>
@@ -649,7 +841,11 @@ const PendingProperties = () => {
                           variant="danger"
                           size="sm"
                           onClick={() =>
-                            handleDeleteClick(prop.ppcId, prop.phoneNumber)
+                            handleDeleteClick(
+                              prop.ppcId,
+                              prop.phoneNumber,
+                              prop._id,
+                            )
                           }
                         >
                           <MdDeleteForever />
@@ -707,7 +903,10 @@ const PendingProperties = () => {
           <Modal.Title>Confirm Deletion</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to delete property {currentPpcId}?</p>
+          <p>
+            Are you sure you want to delete property{" "}
+            {currentPpcId || "(no PPC-ID)"}?
+          </p>
           <Form.Group controlId="deletionReason">
             <Form.Label>Deletion Reason (required)</Form.Label>
             <Form.Control

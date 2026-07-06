@@ -17,6 +17,7 @@ import {
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import PhoneCell from "./components/PhoneCell";
 
 const PPCDatesReport = () => {
   const [inputDates, setInputDates] = useState('');
@@ -168,7 +169,7 @@ const PPCDatesReport = () => {
             {filtered.map((p, idx) => (
               <tr key={idx}>
                 <td>{p.ppcId}</td>
-                <td>{p.phoneNumber}</td>
+                <td><PhoneCell phone={p.phoneNumber} type="any" /></td>
                 <td>{p.propertyMode}</td>
                 <td>{p.propertyType}</td>
                 <td>{p.price}</td>
@@ -219,8 +220,8 @@ const PPCDatesReport = () => {
             {allRequests.map((h, idx) => (
               <tr key={idx}>
                 <td>{h.ppcId}</td>
-                <td>{h.ownerPhone}</td>
-                <td>{h.phoneNumber}</td>
+                <td><PhoneCell phone={h.ownerPhone} type="any" /></td>
+                <td><PhoneCell phone={h.phoneNumber} type="any" /></td>
                 <td>{h.selectHelpReason}</td>
                 <td>{h.comment}</td>
                 <td>{formatDateTime(h.requestedAt)}</td>
@@ -257,8 +258,8 @@ const PPCDatesReport = () => {
             {allReports.map((r, idx) => (
               <tr key={idx}>
                 <td>{r.ppcId}</td>
-                <td>{r.ownerPhone}</td>
-                <td>{r.phoneNumber}</td>
+                <td><PhoneCell phone={r.ownerPhone} type="any" /></td>
+                <td><PhoneCell phone={r.phoneNumber} type="any" /></td>
                 <td>{r.selectReasons}</td>
                 <td>{r.reason}</td>
                 <td>{formatDateTime(r.date)}</td>
@@ -304,7 +305,7 @@ const PPCDatesReport = () => {
                 <td>{idx + 1}</td>
                 <td>{p.ppcId}</td>
                 <td>{p.ownerName || '-'}</td>
-                <td>{p.phoneNumber}</td>
+                <td><PhoneCell phone={p.phoneNumber} type="any" /></td>
                 <td>{p.propertyMode}</td>
                 <td>{p.propertyType}</td>
                 <td>{p.price?.toLocaleString()}</td>

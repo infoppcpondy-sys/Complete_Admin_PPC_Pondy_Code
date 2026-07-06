@@ -9,6 +9,7 @@ import { MdDeleteForever } from "react-icons/md";
 // excel utilities
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import PhoneCell from "./components/PhoneCell";
 
 const PreApprovedCar = () => {
   const [properties, setProperties] = useState([]);
@@ -27,6 +28,7 @@ const PreApprovedCar = () => {
   const [otpStatusFilter, setOtpStatusFilter] = useState(""); // "verified", "non-verified", or '' for all
   const [featureStatusFilter, setFeatureStatusFilter] = useState("");
   const [followUpFilter, setFollowUpFilter] = useState(""); // "yes" or "no" for follow-up existence
+  const [bulkUploadFilter, setBulkUploadFilter] = useState(""); // "yes" or "no" for bulk-upload origin
 
   const [billMap, setBillMap] = useState({});
 
@@ -159,6 +161,38 @@ const PreApprovedCar = () => {
         });
       }
     }
+  };
+
+  // Open Create Follow-up / Create Bill in BULK mode for every bulk-uploaded
+  // property currently shown (after the active filters / search).
+  const handleBulkFollowup = () => {
+    const bulkRows = (filtered || []).filter((p) => p.bulkUploadId);
+    if (bulkRows.length === 0) {
+      alert("No bulk-uploaded properties in the current view.");
+      return;
+    }
+    navigate("/dashboard/create-followup", {
+      state: {
+        bulkMode: true,
+        bulkCount: bulkRows.length,
+        items: bulkRows.map((p) => ({ ppcId: p.ppcId, phoneNumber: p.phoneNumber })),
+      },
+    });
+  };
+
+  const handleBulkBill = () => {
+    const bulkRows = (filtered || []).filter((p) => p.bulkUploadId);
+    if (bulkRows.length === 0) {
+      alert("No bulk-uploaded properties in the current view.");
+      return;
+    }
+    navigate("/dashboard/create-bill", {
+      state: {
+        bulkMode: true,
+        bulkCount: bulkRows.length,
+        items: bulkRows.map((p) => ({ ppcId: p.ppcId, phoneNumber: p.phoneNumber })),
+      },
+    });
   };
 
   useEffect(() => {
@@ -326,6 +360,13 @@ const PreApprovedCar = () => {
       return matchStart && matchEnd;
     });
 
+    // Bulk upload filter
+    if (bulkUploadFilter === "yes") {
+      result = result.filter((prop) => !!prop.bulkUploadId);
+    } else if (bulkUploadFilter === "no") {
+      result = result.filter((prop) => !prop.bulkUploadId);
+    }
+
     setFiltered(result);
   };
 
@@ -339,6 +380,7 @@ const PreApprovedCar = () => {
     featureStatusFilter,
     otpStatusFilter,
     followUpFilter,
+    bulkUploadFilter,
   ]);
 
   const handleReset = () => {
@@ -349,6 +391,7 @@ const PreApprovedCar = () => {
     setStartDate("");
     setEndDate("");
     setFeatureStatusFilter("");
+    setBulkUploadFilter("");
     setFiltered(properties);
   };
 
@@ -360,23 +403,22 @@ const PreApprovedCar = () => {
         { params: { ppcId: currentPpcId } },
       );
 
-      // Update local state
+      // Remove the property from this page so it shows up under Removed Property
       setProperties((prev) =>
-        prev.map((prop) =>
-          prop.ppcId === currentPpcId
-            ? {
-                ...prop,
-                isDeleted: true,
-                deletionReason: deletionReason.trim(),
-                deletionDate: new Date().toISOString(),
-              }
-            : prop,
-        ),
+        prev.filter((prop) => prop.ppcId !== currentPpcId),
+      );
+      setFiltered((prev) =>
+        prev.filter((prop) => prop.ppcId !== currentPpcId),
       );
 
-      setStatusProperties((prev) => ({ ...prev, [currentPpcId]: "delete" }));
+      setStatusProperties((prev) => {
+        const next = { ...prev };
+        delete next[currentPpcId];
+        return next;
+      });
       setShowDeleteModal(false);
       setDeletionReason("");
+      alert("Property moved to Removed Property successfully.");
     } catch (error) {
       alert(error.response?.data?.message || "Error deleting property");
     }
@@ -606,6 +648,17 @@ const PreApprovedCar = () => {
 
         <select
           className="form-select"
+          value={bulkUploadFilter}
+          onChange={(e) => setBulkUploadFilter(e.target.value)}
+          style={{ maxWidth: "150px" }}
+        >
+          <option value="">All Bulk Upload</option>
+          <option value="yes">Bulk Upload: Yes</option>
+          <option value="no">Bulk Upload: No</option>
+        </select>
+
+        <select
+          className="form-select"
           value={featureStatusFilter}
           onChange={(e) => setFeatureStatusFilter(e.target.value)}
           style={{ maxWidth: "150px" }}
@@ -620,7 +673,7 @@ const PreApprovedCar = () => {
           type="date"
           className="form-control"
           value={startDate}
-          onChange={(e) => setFromDate(e.target.value)}
+          onChange={(e) => setStartDate(e.target.value)}
           style={{ maxWidth: "150px" }}
         />
 
@@ -662,10 +715,49 @@ const PreApprovedCar = () => {
       >
         Excel
       </button>
-      <h3 className="text-success mt-3 mb-4">
-        {" "}
-        Pre Approved Properties All Datas{" "}
-      </h3>
+      <button
+        className="btn mb-3 ms-2"
+        style={{ background: "#f0ad4e", color: "#fff", fontWeight: "bold" }}
+        onClick={handleBulkFollowup}
+      >
+        Bulk Followup ({(filtered || []).filter((p) => p.bulkUploadId).length})
+      </button>
+      <button
+        className="btn mb-3 ms-2"
+        style={{ background: "#2f747f", color: "#fff", fontWeight: "bold" }}
+        onClick={handleBulkBill}
+      >
+        Bulk Bill ({(filtered || []).filter((p) => p.bulkUploadId).length})
+      </button>
+      <div className="d-flex align-items-center gap-3 mt-3 mb-4 flex-wrap">
+        <h3 className="text-success mb-0">
+          Pre Approved Properties All Datas
+        </h3>
+        <span
+          style={{
+            background: "#6c757d",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Total: {properties.length} Records
+        </span>
+        <span
+          style={{
+            background: "#007bff",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Showing: {filtered.length} Records
+        </span>
+      </div>
       <div ref={tableRef}>
         <Table
           striped
@@ -688,25 +780,14 @@ const PreApprovedCar = () => {
               <th>Price</th>
               <th>City</th>
               <th>CreatedBy</th>
+              <th>Added By</th>
               <th>Created At</th>
               <th>Updated At</th>
               <th>No.Of.Ads</th>
               <th>Mandatory</th>
-              <th>Set PPCID Status</th>
-              <th>Set PPCID Assigned Date</th>
-              <th>Set PPCID Assigned PhoneNumber</th>
-              <th>Plan Name</th>
-              <th>Plan Type</th>
-              <th>Plan Created</th>
-              <th>Plan Expiry</th>
-              <th>PayU Status</th>
-              <th>Transaction ID</th>
-              <th>Plan Amount</th>
-              <th>Plan CreatedBy</th>
-              <th>Email</th>
-              <th>payU Date</th>
-              <th>Deletion Reason</th>
-              <th>Deleted At</th>
+              <th>Bulk Upload</th>
+              <th>Property Edit</th>
+              <th>Delete</th>
               <th>Feature Status</th>
               <th>Status</th>
               {/* <th>Action</th> */}
@@ -720,7 +801,7 @@ const PreApprovedCar = () => {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="33" className="text-center">
+                <td colSpan="21" className="text-center">
                   No properties found.
                 </td>
               </tr>
@@ -767,7 +848,7 @@ const PreApprovedCar = () => {
                         : ""
                     }`}
                   >
-                    {prop.phoneNumber}
+                    <PhoneCell phone={prop.phoneNumber} type="owner" ppcId={prop.ppcId} />
                   </td>
                   <td>{prop.otpStatus}</td>
                   <td>{prop.isVerifiedUser ? "True" : "False"}</td>
@@ -776,6 +857,7 @@ const PreApprovedCar = () => {
                   <td>{prop.price}</td>
                   <td>{prop.city || "-"}</td>
                   <td>{prop.createdBy}</td>
+                  <td>{prop.addedBy || "-"}</td>
                   <td>
                     {prop.createdAt
                       ? new Date(prop.createdAt).toLocaleDateString()
@@ -788,29 +870,39 @@ const PreApprovedCar = () => {
                   </td>
                   <td>{prop.adsCount}</td>
                   <td>{prop.required}</td>
+                  <td>{prop.bulkUploadId ? 'Yes' : 'No'}</td>
 
-                  <td>{prop.setPpcId ? "True" : "False"}</td>
+                  {/* Property Edit Column */}
                   <td>
-                    {prop.setPpcIdAssignedAt
-                      ? new Date(prop.setPpcIdAssignedAt).toLocaleDateString()
-                      : "N/A"}
+                    <Button
+                      variant="info"
+                      size="sm"
+                      title="Property Edit"
+                      onClick={() =>
+                        navigate("/dashboard/edit-property", {
+                          state: {
+                            ppcId: prop.ppcId,
+                            phoneNumber: prop.phoneNumber,
+                          },
+                        })
+                      }
+                    >
+                      <FaEdit /> Property Edit
+                    </Button>
                   </td>
-                  <td>{prop.assignedPhoneNumber || "N/A"}</td>
-                  <td>{prop.planName}</td>
-                  <td>{prop.packageType}</td>
-                  <td>{new Date(prop.planCreatedAt).toLocaleDateString()}</td>
-                  <td>{prop.planExpiryDate}</td>
-                  <td>{prop.paymentData?.payustatususer}</td>
-                  <td>{prop.paymentData?.txnid}</td>
-                  <td>{prop.paymentData?.amount}</td>
-                  <td>{prop.paymentData?.firstname}</td>
-                  <td>{prop.paymentData?.email}</td>
-                  <td>{prop.paymentData?.payUdate}</td>
-                  <td>{prop.deletionReason || "-"}</td>
+
+                  {/* Delete Column - moves property to Removed Property */}
                   <td>
-                    {prop.deletionDate
-                      ? new Date(prop.deletionDate).toLocaleString()
-                      : "-"}
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      title="Delete (move to Removed Property)"
+                      onClick={() =>
+                        handleDeleteClick(prop.ppcId, prop.phoneNumber)
+                      }
+                    >
+                      <MdDeleteForever /> Delete
+                    </Button>
                   </td>
 
                   {/* Feature Status    */}

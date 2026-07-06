@@ -56,6 +56,10 @@ import moment from "moment";
 
 const Details = () => {
   const [popupType, setPopupType] = useState(""); // "report" or "help"
+  // Share-all-images flow (Web Share API). progress drives the button label
+  // while images are being fetched & assembled into File objects.
+  const [isSharingImages, setIsSharingImages] = useState(false);
+  const [shareProgress, setShareProgress] = useState({ done: 0, total: 0 });
 
   const [imageError, setImageError] = useState({});
   const [showOptions, setShowOptions] = useState(false);
@@ -502,6 +506,116 @@ const handleSubmit = async ({ price, phoneNumber, ppcId }) => {
   const images = propertyDetails.photos && propertyDetails.photos.length > 0
   ? propertyDetails.photos.map((photo) => `https://ppcpondy.com/PPC/${photo}`)
   : []; // Leave empty, handle default in the component
+
+  // ──────────────────────────────────────────────────────────────
+  // Share-all-images via Web Share API.
+  // navigator.share + canShare({files}) opens the OS share sheet; on a phone
+  // the admin picks WhatsApp and all images come pre-attached. On desktop
+  // Chrome with file-share support the same flow works. If neither is
+  // available, fall back to downloading every image so the admin can attach
+  // them in WhatsApp manually.
+  //
+  // Note on CORS: this fetches https://ppcpondy.com/PPC/<photo>. If that host
+  // doesn't return Access-Control-Allow-Origin, the fetch will fail and the
+  // user sees the error toast. Add `Access-Control-Allow-Origin: *` (or the
+  // admin's origin) on the image host for this to work cross-origin.
+  // ──────────────────────────────────────────────────────────────
+  // Decode a fetched image blob (any format — webp, png, jpg, gif) and
+  // re-encode it as JPEG via a canvas. WhatsApp only treats files with .jpg
+  // or .png mime as inline photos; .webp comes through as a document/file
+  // attachment. The white background protects against transparent sources.
+  const blobToJpegFile = (blob, filename) =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(objectUrl);
+          canvas.toBlob(
+            (jpegBlob) => {
+              if (!jpegBlob) return reject(new Error('JPEG encode returned null'));
+              resolve(new File([jpegBlob], filename, { type: 'image/jpeg' }));
+            },
+            'image/jpeg',
+            0.92
+          );
+        } catch (err) {
+          URL.revokeObjectURL(objectUrl);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Could not decode source image'));
+      };
+      img.src = objectUrl;
+    });
+
+  const handleShareAllImages = async () => {
+    if (!images.length || isSharingImages) return;
+    setIsSharingImages(true);
+    setShareProgress({ done: 0, total: images.length });
+
+    try {
+      const files = [];
+      for (let i = 0; i < images.length; i++) {
+        const url = images[i];
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error(`Failed to load image ${i + 1} (${res.status})`);
+        const blob = await res.blob();
+        const filename = `PPC-${propertyDetails.ppcId || 'property'}-${String(i + 1).padStart(2, '0')}.jpg`;
+        const file = await blobToJpegFile(blob, filename);
+        files.push(file);
+        setShareProgress({ done: i + 1, total: images.length });
+      }
+
+      const caption =
+        `${propertyDetails.propertyMode || ''} | ${propertyDetails.propertyType || ''}` +
+        (propertyDetails.city ? ` in ${propertyDetails.city}` : '') +
+        (propertyDetails.price ? `\n₹ ${propertyDetails.price}` : '') +
+        (propertyDetails.ppcId ? `\nPPC ID: ${propertyDetails.ppcId}` : '');
+
+      const shareData = {
+        files,
+        title: `PPC ${propertyDetails.ppcId || ''} — ${propertyDetails.propertyType || 'Property'}`,
+        text: caption.trim(),
+      };
+
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback — download each image; admin attaches in WhatsApp manually.
+        files.forEach((file) => {
+          const objectUrl = URL.createObjectURL(file);
+          const a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+        });
+        alert(
+          "Your browser doesn't support direct sharing. All images have been downloaded — attach them to WhatsApp manually."
+        );
+      }
+    } catch (err) {
+      // AbortError is fired when the user dismisses the share sheet — not an error.
+      if (err && err.name !== 'AbortError') {
+        alert(`Couldn't share images: ${err.message || err}`);
+      }
+    } finally {
+      setIsSharingImages(false);
+      setShareProgress({ done: 0, total: 0 });
+    }
+  };
 
 
    
@@ -1057,7 +1171,7 @@ const currentUrl = `${window.location.origin}${location.pathname}`; // <- Works 
     `}
   </style>
   <div className="row d-flex align-items-center w-100">
-    <div className="d-flex col-12 justify-content-end">  
+    <div className="d-flex col-12 justify-content-end">
       <button className="swiper-button-prev-custom m-1 w-30" style={{background:"#019988"}}>❮</button>
       <button className="swiper-button-next-custom m-1 w-30"style={{background:"#019988"}}>❯</button>
     </div>
@@ -1065,6 +1179,49 @@ const currentUrl = `${window.location.origin}${location.pathname}`; // <- Works 
   <div className="text-center mt-2">
     {Math.min(currentIndex, images.length)}/{maxImages}
   </div>
+
+  {/* Share all images via WhatsApp — uses Web Share API. */}
+  {images.length > 0 && (
+    <div className="text-center mt-3">
+      <button
+        type="button"
+        onClick={handleShareAllImages}
+        disabled={isSharingImages}
+        style={{
+          background: isSharingImages
+            ? '#9CA3AF'
+            : 'linear-gradient(135deg, #25D366, #128C7E)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '24px',
+          padding: '10px 22px',
+          fontSize: '14px',
+          fontWeight: 600,
+          cursor: isSharingImages ? 'not-allowed' : 'pointer',
+          boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        }}
+        onMouseOver={(e) => {
+          if (!isSharingImages) {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 211, 102, 0.5)';
+          }
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 211, 102, 0.35)';
+        }}
+      >
+        <span style={{ fontSize: 18, lineHeight: 1 }}>📤</span>
+        {isSharingImages
+          ? `Preparing ${shareProgress.done}/${shareProgress.total}…`
+          : `Share all ${images.length} image${images.length > 1 ? 's' : ''} via WhatsApp`}
+      </button>
+    </div>
+  )}
 </div>
 
         <p className="text-start m-0" style={{ color: "black" , fontSize:"18px" , paddingLeft:"10px"}}>
@@ -1264,38 +1421,9 @@ return (
 
       {/* Contact Info Section */}
       <h5 className="pt-3 fw-bold">Contact Info</h5>
-   
 
-<div 
-  className="btn rounded-1 p-2 text-center d-flex align-items-center justify-content-center" 
-  style={{ background: 'transparent', border: '1px solid #30747F', color: '#30747F' }} 
-  onMouseOver={(e) => {
-    e.target.style.background = "#46AFAA";
-    e.target.style.color = "#fff";
-
-    e.target.style.fontWeight = 500;
-    e.target.style.transition = "background 0.3s ease";
-  }}
-  onMouseOut={(e) => {
-    e.target.style.border = "'1px solid #30747F'";
-    e.target.style.fontWeight = 400;
-    e.target.style.background = "transparent";
-    e.target.style.color = "#30747F";
-
-
-  }}
-  onClick={handleOwnerContactClick}
->
-  <img 
-    src={contact} 
-    alt="Contact Icon" 
-    style={{ width: '20px', height: '20px', marginRight: '8px' }} 
-  />
-  View owner contact details
-</div>
-      {showContactDetails && (
         <div className="mt-3">
-      
+
    <div className="row g-3">
 
 {/* Name */}
@@ -1375,29 +1503,7 @@ return (
 
 </div>
 
-          <span className="d-flex justify-content-end align-items-center">
-
-
-  <button
-    className="btn btn-outline-#30747F m-0 d-flex align-items-center gap-2"
-    style={{ color: "white",backgroundColor:" #30747F", border: "1px solid #30747F" }}
-    onClick={() => (window.location.href = `tel:${propertyDetails.phoneNumber}`)}
-    onMouseOver={(e) => {
-      e.target.style.background = "#029bb3";
-      e.target.style.fontWeight = 600;
-      e.target.style.transition = "background 0.3s ease";
-    }}
-    onMouseOut={(e) => {
-      e.target.style.background = "#2F747F";
-      e.target.style.fontWeight = 400;
-    }}
-  >
-    <FaPhoneAlt style={{  transition: 'color 0.3s ease-in-out' , background:"transparent"}}/> Call
-    
-  </button>
-</span>
         </div>
-      )}
 
       {/* Image modal */}
       {showModal && (
@@ -1418,42 +1524,6 @@ return (
 
 
 
-      <div className="container my-5" style={{ maxWidth: "450px" }}>
-        <div className="row justify-content-center">
-          {cards.map((card, index) => (
-            <div key={index} className="col-3 d-flex justify-content-center">
-              <div
-                className="card text-center shadow"
-                style={{
-                  width: "100px",
-                  height: "80px",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  border: 'none'
-                }}
-                onClick={card.onClick}
-              >
-                <div className="d-flex justify-content-center align-items-center" style={{ height: "50%", width: "100%" }}>
-                  <img
-                    src={card.img}
-                    alt={`Card ${index + 1}`}
-                    style={{ width: "30px", height: "30px", objectFit: "cover", marginTop: "5px" }}
-                  />
-                </div>
-                <div className="d-flex justify-content-center align-items-center" style={{ height: "50%", width: "100%", textAlign: "center" }}>
-                  <p className="card-text" style={{ fontSize: "10px", margin: "0", wordWrap: "break-word", overflow: "visible" }}>
-                    {card.text}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-   
 {Popup && (
   <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
     <div className="modal-dialog modal-dialog-centered">
@@ -1664,19 +1734,6 @@ return (
 />
     </div>
     </div>
-    <div className="d-flex align-items-center justify-content-around w-100 button-group">
-        <button onClick={handleGoBack} className="d-flex align-items-center justify-content-start ps-3"
-        style={{background:"#5AB89E" , color:"#fff" , }}
-        ><IoChevronBackSharp />
- Back</button>
-        <button className="d-flex align-items-center justify-content-start ps-3" onClick={() => navigate('/mobileviews')}        style={{background:"#5AB89E" , color:"#fff" }}
-        ><TiHome />
-Home</button>
-        <button className="d-flex align-items-center justify-content-start ps-3" onClick={handleIncreasePpcId}         style={{background:"#5AB89E" , color:"#fff" ,}}
-        >Next
-          <GrNext />
- </button>
-      </div>
 {propertyDetails?.locationCoordinates && (
   <div className="mt-3">
     <h6>Property Location on Map:</h6>
@@ -1687,7 +1744,6 @@ Home</button>
   </div>
 )}
 
-   <img src={promotion} alt="" className="p-4 m-0" />
     </div>
     </div>
     </div>

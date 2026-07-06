@@ -138,6 +138,7 @@ const FollowUpBuyerGetTable = () => {
                 <th>Follow-Up Type</th>
                 <th>Follow-Up Date</th>
                 <th>Admin Name</th>
+                <th>Remark</th>
                 <th>Created At</th>
               </tr>
             </thead>
@@ -151,6 +152,7 @@ const FollowUpBuyerGetTable = () => {
                   <td>{item.followupType}</td>
                   <td>{new Date(item.followupDate).toLocaleDateString()}</td>
                   <td>{item.adminName}</td>
+                  <td style={{ textAlign: "left", maxWidth: "220px", whiteSpace: "pre-wrap" }}>{item.remarks || '-'}</td>
                   <td>{new Date(item.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}

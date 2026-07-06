@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { FaPrint } from 'react-icons/fa';
 import { Table, Modal, Button, Form } from 'react-bootstrap';
+import PhoneCell from "./components/PhoneCell";
 
 const FollowUpBuyerGetTable = () => {
   const [followups, setFollowups] = useState([]);
@@ -157,6 +158,7 @@ const FollowUpBuyerGetTable = () => {
                 <th>Status</th>
                 <th>Type</th>
                 <th>Follow-Up Date</th>
+                <th>Remark</th>
                 <th>Admin</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -168,10 +170,11 @@ const FollowUpBuyerGetTable = () => {
                   <tr className="text-center">
                     <td>{index + 1}</td>
                     <td>{item.ba_id}</td>
-                    <td>{item.phoneNumber}</td>
+                    <td><PhoneCell phone={item.phoneNumber} type="tenant" ba_id={item.ba_id} /></td>
                     <td>{item.followupStatus}</td>
                     <td>{item.followupType}</td>
                     <td>{new Date(item.followupDate).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'left', maxWidth: '220px', whiteSpace: 'pre-wrap' }}>{item.remarks || '-'}</td>
                     <td>{item.adminName}</td>
                     <td>{new Date(item.createdAt).toLocaleDateString()}</td>
                     <td>
@@ -184,7 +187,7 @@ const FollowUpBuyerGetTable = () => {
                   {/* Transfer History Sub-Table */}
                   {item.transferHistory && item.transferHistory.length > 0 && (
                     <tr>
-                      <td colSpan="9">
+                      <td colSpan="10">
                         <h6>Transfer History:</h6>
                         <Table bordered size="sm" className="mb-0">
                           <thead>

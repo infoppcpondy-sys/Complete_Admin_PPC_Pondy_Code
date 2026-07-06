@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { MdDeleteForever, MdUndo, MdRefresh, MdCheckCircle } from 'react-icons/md';
 import { Modal, Button, Badge } from 'react-bootstrap';
+import PhoneCell from './components/PhoneCell';
 
 const ExpiredPlanProperties = () => {
   const [expiredPlans, setExpiredPlans] = useState([]);
@@ -222,7 +223,7 @@ const ExpiredPlanProperties = () => {
               <tr key={plan._id}>
                 <td>{index + 1}</td>
                 <td>{plan.ppcId}</td>
-                <td>{plan.phoneNumber}</td>
+                <td><PhoneCell phone={plan.phoneNumber} type="owner" ppcId={plan.ppcId} /></td>
                 <td>{getStatusBadge(plan.status)}</td>
                 <td>
                   <table className="table table-sm table-bordered mb-0">

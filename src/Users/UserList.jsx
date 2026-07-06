@@ -6,8 +6,9 @@ import './UserList.css';
 import { FaEdit } from 'react-icons/fa';
 import { MdDeleteForever } from 'react-icons/md';
 import { Table } from 'react-bootstrap';
+import PhoneCell from "../components/PhoneCell";
 
-const UserForm = ({ user, onSave, onDelete }) => {
+const UserForm = ({ user, existingUsers = [], onSave, onDelete }) => {
     const [formData, setFormData] = useState({
         name: '',
         address: '',
@@ -19,9 +20,11 @@ const UserForm = ({ user, onSave, onDelete }) => {
         aadhaarNumber: '',
         userName: '',
         password: '',
-        role: '',
-        userType: ''
+        role: ''
     });
+
+    // Inline validation error for the User Name field (duplicate detection).
+    const [nameError, setNameError] = useState('');
 
     // State for dynamic roles
     const [dynamicRoles, setDynamicRoles] = useState([]);
@@ -56,6 +59,23 @@ const UserForm = ({ user, onSave, onDelete }) => {
             ...prevState,
             [name]: value
         }));
+
+        // Live duplicate-name check: case-insensitive match against the loaded
+        // admin list. Skip the user's own current name when editing.
+        if (name === 'name') {
+            const trimmed = String(value || '').trim().toLowerCase();
+            if (!trimmed) {
+                setNameError('');
+            } else {
+                const editingId = user && user._id;
+                const clash = (existingUsers || []).some(
+                    (u) =>
+                        u._id !== editingId &&
+                        String(u.name || '').trim().toLowerCase() === trimmed
+                );
+                setNameError(clash ? 'This user name already exists' : '');
+            }
+        }
     };
  
 
@@ -77,6 +97,21 @@ const UserForm = ({ user, onSave, onDelete }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Final duplicate check before hitting the API (covers the case where the
+    // user pasted a name without firing the change handler's match).
+    const trimmed = String(formData.name || '').trim().toLowerCase();
+    const editingId = user && user._id;
+    const clash = (existingUsers || []).some(
+      (u) =>
+        u._id !== editingId &&
+        String(u.name || '').trim().toLowerCase() === trimmed
+    );
+    if (clash) {
+      setNameError('This user name already exists');
+      return;
+    }
+
     try {
       if (user && user._id) {
         await axios.post(`${process.env.REACT_APP_API_URL}/admin-updates/${user._id}`, formData);
@@ -119,7 +154,13 @@ const UserForm = ({ user, onSave, onDelete }) => {
                             value={formData.name}
                             onChange={handleChange}
                             required
+                            style={nameError ? { borderColor: '#D9534F' } : undefined}
                         />
+                        {nameError && (
+                            <small style={{ color: '#D9534F', display: 'block', marginTop: '4px' }}>
+                                {nameError}
+                            </small>
+                        )}
                     </div>
                     <div className="form-group">
                         <label>Address:</label>
@@ -235,20 +276,6 @@ const UserForm = ({ user, onSave, onDelete }) => {
                 </div>
                    
                   
-                    <div className="form-group w-50">
-                        <label>User Type: <span className='text-danger'><strong>*</strong></span></label>
-                        <select
-                            name="userType"
-                            value={formData.userType}
-                            onChange={handleChange}
-                            required
-                        >
-                            <option value="">Select User TYpe</option>
-                            <option value="all">All</option>
-                            <option value="PUC">PUC</option>
-                            <option value="TUC">TUC</option>
-                        </select>
-                    </div>
                       <div className="form-group">
                         <label>Mobile:</label>
                         <input
@@ -259,7 +286,7 @@ const UserForm = ({ user, onSave, onDelete }) => {
                         />
                     </div> 
                 <div>
-                    <button type="submit">{user ? 'Update' : 'Create'} User</button>
+                    <button type="submit" disabled={!!nameError}>{user ? 'Update' : 'Create'} User</button>
                     {user && (
                         <button type="button" onClick={handleDelete}>
                             Delete
@@ -330,7 +357,7 @@ const UserList = () => {
     return (
         <div>
             <h1 style={{color:"rgb(47,116,127)"}} className='text-center mb-4'>User Management</h1>
-            <UserForm user={selectedUser} onSave={handleSave} onDelete={handleDelete} />
+            <UserForm user={selectedUser} existingUsers={users} onSave={handleSave} onDelete={handleDelete} />
             <h2>Staff Details</h2>
             <button className="btn btn-secondary mb-3" style={{background:"tomato"}} onClick={handlePrint}>
   Print
@@ -341,10 +368,9 @@ const UserList = () => {
                     <tr>
                         <th>Sl</th>
                         <th>UserName</th>
-                        <th>Bycrpt Password</th>
+                        {/* <th>Bycrpt Password</th> */}
                         <th>Admin Set Password</th>
                         <th>Role</th>
-                        <th>UserType</th>
                         <th>Office</th>
                         <th>Mobile Number</th>
                         <th>Edit / Delete</th>
@@ -355,12 +381,11 @@ const UserList = () => {
                         <tr key={user._id}>
                             <td>{index + 1}</td>
                             <td>{user.name}</td>
-                            <td>{user.password}</td>
+                            {/* <td>{user.password}</td> */}
                             <td>{user.plainPassword}</td>
                             <td>{user.role}</td>
-                            <td>{user.userType}</td>
                             <td>{user.office}</td>
-                            <td>{user.mobile}</td>
+                            <td><PhoneCell phone={user.mobile} type="any" /></td>
                             <td>
                                 <button  className='text-primary' onClick={() => setSelectedUser(user)}><FaEdit /></button>
                                 <button  className='text-danger fs-5 ' onClick={async () => {

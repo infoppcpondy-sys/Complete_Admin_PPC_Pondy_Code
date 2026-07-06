@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { Table } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerAssistViewsTable = () => {
   const [views, setViews] = useState([]);
@@ -209,7 +210,7 @@ const handleReset = () => {
                   <tr key={view._id}>
                     <td>{index + 1}</td>
                       <td className="sticky-col sticky-col-1">{view.ba_id}</td>
-                    <td className="sticky-col sticky-col-2">{view.phoneNumber}</td>
+                    <td className="sticky-col sticky-col-2"><PhoneCell phone={view.phoneNumber} type="tenant" ba_id={view.ba_id} /></td>
                   
                     <td>{new Date(view.viewedAt).toLocaleString()}</td>
                     <td>{ba.baName || "-"}</td>

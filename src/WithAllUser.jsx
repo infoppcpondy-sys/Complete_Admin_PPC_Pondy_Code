@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PhoneCell from "./components/PhoneCell";
 
 function UsersViewContactData() {
   const [users, setUsers] = useState([]);
@@ -45,7 +46,7 @@ function UsersViewContactData() {
         <tbody>
           {users.map((user) => (
             <tr key={user.phoneNumber}>
-              <td>{user.phoneNumber}</td>
+              <td><PhoneCell phone={user.phoneNumber} type="any" /></td>
               <td>{user.loginDate ? new Date(user.loginDate).toLocaleDateString() : "-"}</td>
               <td>{user.updateDate ? new Date(user.updateDate).toLocaleDateString() : "-"}</td>
               <td>{user.hasPostedProperty ? "Yes" : "No"}</td>

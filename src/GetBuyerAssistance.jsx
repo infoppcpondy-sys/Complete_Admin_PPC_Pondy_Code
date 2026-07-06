@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge, Table } from "react-bootstrap";
 import moment from "moment";
 import { useSelector } from "react-redux";
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerAssistanceTable = ({ setFormData, setEditId }) => {
   const [buyerRequests, setBuyerRequests] = useState([]); // Original data
@@ -144,19 +145,14 @@ const handleSoftDelete = async (id) => {
   try {
     await axios.delete(`${process.env.REACT_APP_API_URL}/delete-buyer-assistance/${id}`);
     setMessage("Buyer Assistance request deleted successfully.");
-    
-    // Update state to trigger immediate UI refresh
-    setBuyerRequests(prevData => 
-      prevData.map(item => 
-        (item._id === id || item.ba_id === id) ? { ...item, isDeleted: true } : item
-      )
+
+    // Drop the row from this page — soft-deleted records live in the
+    // Removed Buyer Assistant page now and shouldn't linger here.
+    setBuyerRequests(prevData =>
+      prevData.filter(item => item._id !== id && item.ba_id !== id)
     );
-    
-    // If using filteredRequests state separately, update it too
-    setFilteredRequests(prevData => 
-      prevData.map(item => 
-        (item._id === id || item.ba_id === id) ? { ...item, isDeleted: true } : item
-      )
+    setFilteredRequests(prevData =>
+      prevData.filter(item => item._id !== id && item.ba_id !== id)
     );
   } catch (error) {
     setMessage("Error deleting Buyer Assistance.");
@@ -331,9 +327,17 @@ const handleUndoDelete = async (id) => {
  </div>
         </form>
       </div>
-             <button className="btn btn-secondary mb-3" style={{background:"tomato"}} onClick={handlePrint}>
-  Print
-</button>
+      <div className="d-flex align-items-center gap-2 flex-wrap mb-3">
+        <button className="btn btn-secondary" style={{ background: "tomato" }} onClick={handlePrint}>
+          Print
+        </button>
+        <span style={{ background: "#6c757d", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Total: {buyerRequests.length} Records
+        </span>
+        <span style={{ background: "#007bff", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Showing: {filteredRequests.length} Records
+        </span>
+      </div>
       {/* Table */}
       <div style={{ width: "100%" }}>
         <h3 className="mt-3 mb-3"> Get All Buyer Assistance Data </h3>
@@ -380,7 +384,7 @@ const handleUndoDelete = async (id) => {
         <tr key={index}>
           <td>{index + 1}</td>
           <td className="sticky-col sticky-col-1">{request.ba_id}</td>
-          <td className="sticky-col sticky-col-2">{request.phoneNumber}</td>
+          <td className="sticky-col sticky-col-2"><PhoneCell phone={request.phoneNumber} type="tenant" ba_id={request.ba_id} /></td>
           <td>{request.city}</td>
           <td>{request.area}</td>
           <td>{request.state}</td>

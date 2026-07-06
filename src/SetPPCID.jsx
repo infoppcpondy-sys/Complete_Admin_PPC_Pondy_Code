@@ -19,6 +19,12 @@ const SetPPCID = () => {
   const [allProperties, setAllProperties] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // ── Buyer Assistance PPCID assign (mirrors the property assign above) ──
+  const [baId, setBaId] = useState('');
+  const [baAssignedPhoneNumber, setBaAssignedPhoneNumber] = useState('');
+  const [allBaAssignments, setAllBaAssignments] = useState([]);
+
   const navigate = useNavigate();
 
   // ── Permission-based access control ──
@@ -127,6 +133,62 @@ const SetPPCID = () => {
 
   useEffect(() => {
     fetchAllProperties();
+  }, []);
+
+  // ── Buyer Assistance assign handlers ──
+  const handleAssignBuyerPhone = async () => {
+    try {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/assign-buyer-phone`, {
+        ba_id: baId,
+        assignedPhoneNumber: baAssignedPhoneNumber,
+      });
+      setMessage(response.data.message);
+      setError('');
+      fetchAllBaAssignments();
+      setBaId('');
+      setBaAssignedPhoneNumber('');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error occurred');
+      setMessage('');
+    }
+  };
+
+  const handleBaDelete = async (ba_id) => {
+    try {
+      await axios.put(`${process.env.REACT_APP_API_URL}/unassign-buyer-phone`, { ba_id });
+      setMessage('Buyer phone assignment removed temporarily.');
+      setError('');
+      fetchAllBaAssignments();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error occurred during delete');
+      setMessage('');
+    }
+  };
+
+  const handleBaUndo = async (ba_id) => {
+    try {
+      await axios.put(`${process.env.REACT_APP_API_URL}/undo-unassign-buyer-phone`, { ba_id });
+      setMessage('Buyer phone assignment restored.');
+      setError('');
+      fetchAllBaAssignments();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error occurred during undo');
+      setMessage('');
+    }
+  };
+
+  const fetchAllBaAssignments = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/get-buyer-phone-assignments`);
+      setAllBaAssignments(response.data);
+    } catch (err) {
+      // 404 = none assigned yet; treat as empty list.
+      setAllBaAssignments([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllBaAssignments();
   }, []);
 
 
@@ -266,7 +328,76 @@ const SetPPCID = () => {
           ))}
         </tbody>
       </table>
-      </div> 
+      </div>
+
+      {/* ── Buyer Assistance Phone Set PPCID Assign ── */}
+      <h2 style={{ marginTop: '50px' }}>Buyer Assistance Phone Set PPCID Assign</h2>
+
+      <div style={{ marginBottom: '10px' }}>
+        <label>BA ID: </label>
+        <input
+          type="text"
+          value={baId}
+          onChange={(e) => setBaId(e.target.value)}
+          placeholder="Enter BA ID"
+          style={{ marginRight: '10px' }}
+        />
+
+        <label>Assign Phone: </label>
+        <input
+          type="text"
+          value={baAssignedPhoneNumber}
+          onChange={(e) => setBaAssignedPhoneNumber(e.target.value)}
+          placeholder="Enter Phone"
+          style={{ marginRight: '10px' }}
+        />
+
+        <button className='text-white bg-primary' onClick={handleAssignBuyerPhone}>Assign</button>
+      </div>
+
+      <h3 style={{ marginTop: '30px' }}>All Buyer Assistance Assignments</h3>
+      <table border="1" cellPadding="10" style={{ marginTop: '10px', borderCollapse: 'collapse', width: '100%' }}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>BA ID</th>
+            <th>Buyer Name</th>
+            <th>Original Phone Number</th>
+            <th>Assigned Phone Number</th>
+            <th>Assignment Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allBaAssignments.map((ba, index) => (
+            <tr key={ba.ba_id}>
+              <td>{index + 1}</td>
+              <td>{ba.ba_id}</td>
+              <td>{ba.baName || 'N/A'}</td>
+              <td>{ba.originalPhoneNumber || 'N/A'}</td>
+              <td>{ba.assignedPhoneNumber || 'Not Assigned'}</td>
+              <td>{ba.setPpcId ? 'Assigned' : 'Unassigned'}</td>
+              <td>
+                {ba.setPpcIdAssignedAt
+                  ? new Date(ba.setPpcIdAssignedAt).toISOString().split('T')[0]
+                  : 'N/A'}
+              </td>
+              <td>
+                {ba.setPpcId ? (
+                  <button style={{ background: '#dc3545', color: '#fff' }} onClick={() => handleBaDelete(ba.ba_id)}>
+                    <FaTrash />
+                  </button>
+                ) : (
+                  <button style={{ background: '#28a745', color: '#fff' }} onClick={() => handleBaUndo(ba.ba_id)}>
+                    <FaUndo />
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

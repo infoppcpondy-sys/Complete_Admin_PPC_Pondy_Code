@@ -8,6 +8,7 @@ import { FaInfoCircle, FaTrash, FaUndo } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import moment from "moment";
+import PhoneCell from "./components/PhoneCell";
 
 const PendingBuyerAssistanceList = () => {
   const [data, setData] = useState([]);
@@ -121,8 +122,11 @@ const PendingBuyerAssistanceList = () => {
   const fetchPendingAssistance = async () => {
     try {
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/fetch-buyerAssistance-pending`);
-      setData(response.data.data);
-      setFiltered(response.data.data);
+      const sorted = [...response.data.data].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setData(sorted);
+      setFiltered(sorted);
     } catch (error) {
     }
   };
@@ -163,8 +167,11 @@ const PendingBuyerAssistanceList = () => {
       String(item.phoneNumber || '').includes(searchPhoneNumber)
     );
   }
+    // Normalize to full-day bounds so picking the same date for both bounds
+    // (or End = today) still includes records created later that day.
     if (startDate) {
       const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
       filteredData = filteredData.filter(
         (item) => new Date(item.createdAt) >= start
       );
@@ -172,6 +179,7 @@ const PendingBuyerAssistanceList = () => {
 
     if (endDate) {
       const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
       filteredData = filteredData.filter(
         (item) => new Date(item.createdAt) <= end
       );
@@ -213,23 +221,15 @@ const handleReset = () => {
   
   const handleSoftDelete = async (ba_id) => {
     if (!window.confirm("Are you sure you want to delete this request?")) return;
-  
+
     try {
       await axios.put(`${process.env.REACT_APP_API_URL}/delete-buyer-assistance/${ba_id}`);
       alert("Buyer Assistance request deleted successfully.");
-  
-      // Update state to mark as deleted
-      setData(prevData =>
-        prevData.map(item =>
-          item.ba_id === ba_id ? { ...item, isDeleted: true } : item
-        )
-      );
-  
-      setFiltered(prevData =>
-        prevData.map(item =>
-          item.ba_id === ba_id ? { ...item, isDeleted: true } : item
-        )
-      );
+
+      // Drop the row from this page — soft-deleted records live in the
+      // Removed Buyer Assistant page now and shouldn't linger here.
+      setData(prevData => prevData.filter(item => item.ba_id !== ba_id));
+      setFiltered(prevData => prevData.filter(item => item.ba_id !== ba_id));
     } catch (error) {
       alert("Error deleting Buyer Assistance.");
     }
@@ -366,9 +366,17 @@ const handleGetFollowUp = () => {
           </button>
         </div>
       </div>
-             <button className="btn btn-secondary mb-3 mt-3" style={{background:"tomato"}} onClick={handlePrint}>
-  Print
-</button>
+      <div className="d-flex align-items-center gap-2 flex-wrap mb-3 mt-3">
+        <button className="btn btn-secondary" style={{ background: "tomato" }} onClick={handlePrint}>
+          Print
+        </button>
+        <span style={{ background: "#6c757d", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Total: {data.length} Records
+        </span>
+        <span style={{ background: "#007bff", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Showing: {filtered.length} Records
+        </span>
+      </div>
        <div className="mb-3 text-end">
                   <button className="text-white bg-success"  onClick={handleGetFollowUp}>
                     Get Follow-Up Buyer
@@ -394,6 +402,7 @@ const handleGetFollowUp = () => {
               <th>PropertyType</th>
               <th>Ba_Status</th>
               <th>Created At</th>
+              <th>Added By</th>
               {/* <th>Plan Name</th> */}
     {/* <th>Plan Created</th> */}
     {/* <th>Expires</th> */}
@@ -410,7 +419,7 @@ const handleGetFollowUp = () => {
                   <td>{index + 1}</td>
                   <td>{item.ba_id}</td>
                   <td>{item.baName}</td>
-                  <td>{item.phoneNumber}</td>
+                  <td><PhoneCell phone={item.phoneNumber} type="tenant" ba_id={item.ba_id} /></td>
                   <td>{item.city}</td>
                   <td>{item.area}</td>
                   <td>
@@ -424,6 +433,7 @@ const handleGetFollowUp = () => {
                   <td>{item.propertyType}</td>
                   <td>{item.ba_status}</td>
                   <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                  <td>{item.addedBy || item.adminName || "-"}</td>
                   {/* <td>{item.planDetails.planName}</td> */}
       {/* <td>{item.planDetails.planCreatedAt}</td> */}
       {/* <td>{item.planDetails.planExpiryDate}</td> */}

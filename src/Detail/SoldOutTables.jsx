@@ -51,20 +51,16 @@ const itemsPerPage = 30;
     const handleDelete = async (ppcId) => {
         if (window.confirm(`Are you sure you want to delete PPC ID: ${ppcId}?`)) {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-free-property/${ppcId}`, {
-                    method: 'PUT',
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/delete-soldout/${ppcId}`, {
+                    method: 'DELETE',
                 });
                 const data = await response.json();
                 alert(data.message);
 
-                // Update state
-                setSoldOutRequestsData(prev =>
-                    prev.map(item =>
-                        item.ppcId === ppcId ? { ...item, isDeleted: true } : item
-                    )
-                );
+                // Remove the deleted sold-out request row from the table
+                setSoldOutRequestsData(prev => prev.filter(item => item.ppcId !== ppcId));
             } catch (error) {
-                alert('Failed to delete the property.');
+                alert('Failed to delete the sold-out request.');
             }
         }
     };
@@ -423,7 +419,9 @@ const currentPageData = filteredData.slice(indexOfFirstItem, indexOfLastItem);
                                         <td>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</td>
                                         <td>{data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}</td>
                                          <td>
-                     
+                                            <button className="btn btn-danger" onClick={() => handleDelete(data.ppcId)}>
+                                                <MdDeleteForever size={24} />
+                                            </button>
                         </td>
                                     </tr>
                                 ))}

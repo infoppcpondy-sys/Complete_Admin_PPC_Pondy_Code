@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from 'react-bootstrap';
 import { FaTrash, FaInfoCircle, FaUndo } from 'react-icons/fa';
 import moment from 'moment';
+import PhoneCell from "./components/PhoneCell";
 
 const ExpiredBuyerPlans = ({ item }) => {
   const [data, setData] = useState([]);
@@ -81,11 +82,13 @@ const ExpiredBuyerPlans = ({ item }) => {
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/delete-buyer-assistance/${id}`);
       setMessage("Buyer Assistance request deleted successfully.");
+      // Drop the request from the nested list — soft-deleted records live in
+      // the Removed Buyer Assistant page now and shouldn't linger here.
       setData(prev =>
         prev.map(plan => ({
           ...plan,
-          assistanceRequests: plan.assistanceRequests.map(req =>
-            (req._id === id || req.ba_id === id) ? { ...req, isDeleted: true } : req
+          assistanceRequests: plan.assistanceRequests.filter(req =>
+            req._id !== id && req.ba_id !== id
           )
         }))
       );
@@ -234,7 +237,7 @@ const filteredRequests =
                           <td>{idx2 + 1}</td>
                           <td>{assist.ba_id}</td>
                           <td>{assist.baName}</td>
-                          <td>{assist.phoneNumber}</td>
+                          <td><PhoneCell phone={assist.phoneNumber} type="tenant" ba_id={assist.ba_id} /></td>
                           <td>{assist.city}</td>
                           <td>{assist.area}</td>
                           <td>{assist.minPrice}</td>

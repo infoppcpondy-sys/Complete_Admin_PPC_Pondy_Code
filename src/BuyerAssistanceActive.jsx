@@ -6,6 +6,7 @@ import { Table, Badge, Modal, Button } from 'react-bootstrap';
 import { FaTrash, FaUndo, FaInfoCircle, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
+import PhoneCell from "./components/PhoneCell";
 
 const BuyerAssistanceActive = () => {
   const [data, setData] = useState([]);
@@ -26,8 +27,14 @@ const BuyerAssistanceActive = () => {
   const fetchData = async () => {
     try {
       const res = await axios.get(`${process.env.REACT_APP_API_URL}/baActive-buyerAssistance-all-plans`);
-      setData(res.data.data);
-      setFilteredData(res.data.data);
+      // Deleted records belong on the Removed Buyer Assistant page only —
+      // drop them here so this page shows active requests exclusively.
+      const activeOnly = (res.data.data || []).filter((item) => !item.isDeleted);
+      const sorted = [...activeOnly].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setData(sorted);
+      setFilteredData(sorted);
     } catch (error) {
     }
   };
@@ -69,19 +76,30 @@ const BuyerAssistanceActive = () => {
     );
   }
 
-    if (startDate) {
-      const start = new Date(startDate);
-      filtered = filtered.filter(item => {
-        const createdAt = new Date(item.planDetails.planCreatedAt);
-        return createdAt >= start;
-      });
-    }
+    // Use the BA record's own createdAt (not planDetails.planCreatedAt which is a
+    // locale-formatted string and parses unreliably). Parse the YYYY-MM-DD picker
+    // value into a LOCAL date — `new Date("YYYY-MM-DD")` parses as UTC, which can
+    // shift the bound by a day. Normalize start/end to the full day so picking the
+    // same date for both bounds still includes that day's records.
+    const parseLocalDate = (value, endOfDay) => {
+      const [y, m, d] = String(value).split("-").map(Number);
+      if (!y || !m || !d) return null;
+      return endOfDay
+        ? new Date(y, m - 1, d, 23, 59, 59, 999)
+        : new Date(y, m - 1, d, 0, 0, 0, 0);
+    };
 
-    if (endDate) {
-      const end = new Date(endDate);
+    const start = startDate ? parseLocalDate(startDate, false) : null;
+    const end = endDate ? parseLocalDate(endDate, true) : null;
+
+    if (start || end) {
       filtered = filtered.filter(item => {
-        const createdAt = new Date(item.planDetails.planCreatedAt);
-        return createdAt <= end;
+        if (!item.createdAt) return false;
+        const createdAt = new Date(item.createdAt);
+        if (isNaN(createdAt.getTime())) return false;
+        if (start && createdAt < start) return false;
+        if (end && createdAt > end) return false;
+        return true;
       });
     }
 
@@ -104,17 +122,10 @@ const handleSoftDelete = async (_id) => {
     await axios.put(`${process.env.REACT_APP_API_URL}/delete-buyer-assistances/${_id}`);
     alert("Buyer Assistance request deleted successfully.");
 
-    setData(prevData =>
-      prevData.map(item =>
-        item._id === _id ? { ...item, isDeleted: true } : item
-      )
-    );
-
-    setFilteredData(prevData =>
-      prevData.map(item =>
-        item._id === _id ? { ...item, isDeleted: true } : item
-      )
-    );
+    // Drop the row from this page — soft-deleted records live in the
+    // Removed Buyer Assistant page now and shouldn't linger here.
+    setData(prevData => prevData.filter(item => item._id !== _id));
+    setFilteredData(prevData => prevData.filter(item => item._id !== _id));
   } catch (error) {
     alert(`Error deleting Buyer Assistance: ${error.response?.data?.message || error.message}`);
   }
@@ -233,16 +244,25 @@ const handleViewBillHistory = async (ba_id) => {
           </button>
 
             <button
-onClick={handleReset}         
+type="button"
+onClick={handleReset}
    className="btn btn-primary ms-2 text-white px-6 py-2 rounded shadow"
           >
             Reset
           </button>
         </div>
       </form>
-             <button className="btn btn-secondary mb-3 mt-3" style={{background:"tomato"}} onClick={handlePrint}>
-  Print
-</button>
+      <div className="d-flex align-items-center gap-2 flex-wrap mb-3 mt-3">
+        <button className="btn btn-secondary" style={{ background: "tomato" }} onClick={handlePrint}>
+          Print
+        </button>
+        <span style={{ background: "#6c757d", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Total: {data.length} Records
+        </span>
+        <span style={{ background: "#007bff", color: "white", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", fontSize: "14px" }}>
+          Showing: {filteredData.length} Records
+        </span>
+      </div>
       {/* Data Table */}
       <div className="overflow-x-auto mt-1 mb-3">
         <h3 className="text-primary">All Buyer Assistance With Plan Data</h3>
@@ -258,6 +278,7 @@ onClick={handleReset}
               <th className="border px-4 py-2">Max Price</th>
               <th className="border px-4 py-2">Payment Type</th>
               <th className="border px-4 py-2">Created At</th>
+              <th className="border px-4 py-2">Added By</th>
               <th className="border px-4 py-2">Duration (Days)</th>
               <th className="border px-4 py-2">Expiry Date</th>
               <th className="border px-4 py-2">Package Type</th>
@@ -271,7 +292,7 @@ onClick={handleReset}
             {filteredData.map((item, idx) => (
               <tr key={idx} className="text-center">
                 <td className="border px-4 py-2">{item.ba_id}</td>
-                <td className="border px-4 py-2">{item.phoneNumber}</td>
+                <td className="border px-4 py-2"><PhoneCell phone={item.phoneNumber} type="tenant" ba_id={item.ba_id} /></td>
                 <td className="border px-4 py-2">{item.baName}</td>
                 <td className="border px-4 py-2">{item.propertyMode}</td>
                 <td className="border px-4 py-2">{item.propertyType}</td>
@@ -279,7 +300,12 @@ onClick={handleReset}
                 <td className="border px-4 py-2">{item.maxPrice}</td>
 
                 <td className="border px-4 py-2">{item.planDetails.planType}</td>
-                <td className="border px-4 py-2">{item.planDetails.planCreatedAt}</td>
+                <td className="border px-4 py-2">
+                  {item.createdAt
+                    ? moment(item.createdAt).format("DD-MM-YYYY HH:mm")
+                    : "N/A"}
+                </td>
+                <td className="border px-4 py-2">{item.addedBy || item.adminName || "-"}</td>
                 <td className="border px-4 py-2">{item.planDetails.durationDays}</td>
                 <td className="border px-4 py-2">{item.planDetails.planExpiryDate}</td>
                 <td className="border px-4 py-2">{item.planDetails.packageType}</td>
@@ -352,7 +378,7 @@ onClick={handleReset}
           </tbody>
         </Table>
       </div>
-      </div> 
+      </div>
 
       {/* Edit Bill History Modal */}
       <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)} size="lg">

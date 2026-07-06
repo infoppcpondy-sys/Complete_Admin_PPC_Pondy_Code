@@ -7,6 +7,7 @@ import { Navbar, Container, Dropdown } from "react-bootstrap";
 import { FaBars, FaTimes, FaUserCircle, FaCog, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getAdminBase, adminBaseLabel } from "./utils/adminBase";
 
 const AppNavbar = ({ toggleSidebar }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -54,7 +55,13 @@ const AppNavbar = ({ toggleSidebar }) => {
   }, [adminName]);
 
   const handleLogout = () => {
-    localStorage.removeItem("adminName"); // remove from storage
+    // Clear the full persisted identity so the next load doesn't restore a
+    // stale session (App.js rehydrates Redux from adminName/adminRole, and the
+    // route guard checks adminToken).
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminName");
+    localStorage.removeItem("adminRole");
+    localStorage.removeItem("rolePermissions");
     sessionStorage.removeItem("navbarRefreshed"); // allow refresh next login
     setAdminName("");
     navigate("/admin"); // redirect to login
@@ -67,8 +74,27 @@ const AppNavbar = ({ toggleSidebar }) => {
           <span className="fw-bold text-primary"> Pondy Properties | Admin </span>
         </Navbar.Brand>
 
-        <div style={{ marginLeft: "auto", paddingRight: "1rem" }}>
-          Welcome, <strong>{adminName}</strong>
+        <div
+          className="d-flex align-items-center"
+          style={{ marginLeft: "auto", paddingRight: "1rem", gap: "0.75rem" }}
+        >
+          {/* Active city scope (ALL / PY / CH) chosen at login. */}
+          <span
+            className="badge rounded-pill"
+            style={{
+              background: "#e7f1ff",
+              color: "#1a73e8",
+              fontWeight: 600,
+              fontSize: "0.8rem",
+              padding: "0.4rem 0.75rem",
+            }}
+            title="Active city scope (set at login)"
+          >
+            📍 {adminBaseLabel(getAdminBase())}
+          </span>
+          <span>
+            Welcome, <strong>{adminName}</strong>
+          </span>
         </div>
 
         <button

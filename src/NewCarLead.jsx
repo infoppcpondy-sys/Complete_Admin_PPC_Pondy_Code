@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Button, Table } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
 
 
 const RecentProperties = () => {
@@ -245,7 +246,7 @@ const handleReset = () => {
                                 state: { ppcId: property.ppcId, phoneNumber: property.phoneNumber },
                               })
                             }>{property.ppcId || "N/A"}</td>
-                                <td>{property.phoneNumber || "N/A"}</td>
+                                <td><PhoneCell phone={property.phoneNumber} display={property.phoneNumber || "N/A"} type="any" /></td>
                 <td>{property.propertyMode || "N/A"}</td>
                 <td>{property.propertyType || "N/A"}</td>
                 <td>{property.price || "N/A"}</td>

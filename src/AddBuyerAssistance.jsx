@@ -92,16 +92,27 @@ import {
   BiCube,
 } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import minprice from "./Assets/Price Mini-01.png";
 import maxprice from "./Assets/Price maxi-01.png";
 import { FcSearch } from "react-icons/fc";
 import { toWords } from "number-to-words";
+import { cleanPriceValue, numToIndianWords, isPriceField } from "./utils/priceUtils";
+import PriceInput from "./components/PriceInput";
+import AreaPincodeFields from "./components/AreaPincodeFields";
+import AlertModal from "./components/AlertModal";
 
 const PropertyAssistance = ({ existingData }) => {
   const [hovered, setHovered] = useState(false);
   const [priceInWords, setPriceInWords] = useState("");
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [hoveredAreaIndex, setHoveredAreaIndex] = useState(null);
+
+  // Logged-in admin (used to stamp who added this Buyer Assistance)
+  const reduxAdminName = useSelector((state) => state.admin.name);
+  const reduxAdminRole = useSelector((state) => state.admin.role);
+  const adminName = reduxAdminName || localStorage.getItem("adminName") || "";
+  const adminRole = reduxAdminRole || localStorage.getItem("adminRole") || "";
 
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [areaSuggestions, setAreaSuggestions] = useState([]);
@@ -157,6 +168,7 @@ const PropertyAssistance = ({ existingData }) => {
     altPhoneNumber: "",
     city: "",
     area: "",
+    pincode: "",
     loanInput: "",
     minPrice: "",
     maxPrice: "",
@@ -448,7 +460,19 @@ const PropertyAssistance = ({ existingData }) => {
                       borderBottom: "1px solid #D0D7DE",
                     }}
                   >
-                    {option}
+                    <div>{option}</div>
+                    {isPriceField(field) && (
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#888",
+                          fontWeight: 300,
+                          marginTop: "2px",
+                        }}
+                      >
+                        {numToIndianWords(option)}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -607,9 +631,10 @@ const PropertyAssistance = ({ existingData }) => {
     filterText: "",
   });
 
-  const [message, setMessage] = useState("");
-  const [showPopup, setShowPopup] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [successModal, setSuccessModal] = useState({ open: false, title: "", body: "" });
+  const [errorModal, setErrorModal] = useState({ open: false, title: "", body: "" });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -621,9 +646,14 @@ const PropertyAssistance = ({ existingData }) => {
     if (!formData.propertyMode) errors.push("Property Mode is required");
     if (!formData.minPrice) errors.push("Min Price is required");
     if (!formData.maxPrice) errors.push("Max Price is required");
+    if (!formData.phoneNumber) {
+      errors.push("Phone Number is required");
+    } else if (!/^\d{10}$/.test(String(formData.phoneNumber).trim())) {
+      errors.push("Phone Number must be 10 digits");
+    }
 
     if (errors.length > 0) {
-      alert(errors.join("\n"));
+      setValidationErrors(errors);
       return;
     }
 
@@ -633,7 +663,12 @@ const PropertyAssistance = ({ existingData }) => {
   useEffect(() => {
     fetchDropdownData();
     if (existingData) {
-      setFormData(existingData);
+      setFormData({
+        ...existingData,
+        // Normalize any legacy "50001"-style price into the cleaned form.
+        minPrice: existingData.minPrice ? cleanPriceValue(existingData.minPrice) : existingData.minPrice,
+        maxPrice: existingData.maxPrice ? cleanPriceValue(existingData.maxPrice) : existingData.maxPrice,
+      });
     }
   }, [existingData]);
 
@@ -647,6 +682,14 @@ const PropertyAssistance = ({ existingData }) => {
         acc[item.field].push(item.value);
         return acc;
       }, {});
+      // Clean stray trailing "1" from legacy price values (e.g. "50001" -> "50000")
+      // and dedupe in case multiple raw values clean to the same number.
+      if (groupedData.minPrice) {
+        groupedData.minPrice = Array.from(new Set(groupedData.minPrice.map(cleanPriceValue)));
+      }
+      if (groupedData.maxPrice) {
+        groupedData.maxPrice = Array.from(new Set(groupedData.maxPrice.map(cleanPriceValue)));
+      }
       setDataList(groupedData);
     } catch (error) {}
   };
@@ -723,28 +766,36 @@ const PropertyAssistance = ({ existingData }) => {
           `${process.env.REACT_APP_API_URL}/update-buyerAssistance/${formData._id}`,
           formData,
         );
-        setMessage("Buyer Assistance request updated successfully!");
+        setSuccessModal({
+          open: true,
+          title: "Updated",
+          body: "Buyer Assistance request updated successfully!",
+        });
       } else {
-        // Create new request
+        // Create new request — stamp the logged-in admin so we know who added it
+        const payload = {
+          ...formData,
+          addedBy: adminName,
+          addedByRole: adminRole,
+          addedAt: new Date().toISOString(),
+        };
         response = await axios.post(
           `${process.env.REACT_APP_API_URL}/add-buyerAssistance`,
-          formData,
+          payload,
         );
         setFormData(response.data.data); // Save returned formData with IDs etc.
-        setMessage("Buyer Assistance request added successfully!");
+        setSuccessModal({
+          open: true,
+          title: "Added",
+          body: "Buyer Assistance request added successfully!",
+        });
       }
-
-      setShowPopup(true);
     } catch (error) {
-      setMessage({
-        text: "Please fill all required fields correctly.",
-        type: "error",
+      setErrorModal({
+        open: true,
+        title: "Could not save",
+        body: "Please fill all required fields correctly.",
       });
-      setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-        setMessage("");
-      }, 3000);
     }
   };
 
@@ -794,12 +845,25 @@ const PropertyAssistance = ({ existingData }) => {
         Buyer Assistance
       </h4>
 
-      <div>
-        {message && (
-          <div className="alert text-success text-bold">{message}</div>
-        )}
-        {/* Your existing component structure goes here */}
-      </div>
+      <AlertModal
+        open={successModal.open}
+        title={successModal.title || "Success"}
+        messages={successModal.body}
+        onClose={() => {
+          setSuccessModal({ open: false, title: "", body: "" });
+          // After dismiss, take admin to the Pending - Buyer Assistance list.
+          navigate("/dashboard/pending-assistant");
+        }}
+        variant="success"
+      />
+
+      <AlertModal
+        open={errorModal.open}
+        title={errorModal.title || "Error"}
+        messages={errorModal.body}
+        onClose={() => setErrorModal({ open: false, title: "", body: "" })}
+        variant="error"
+      />
 
       {showConfirmPopup && (
         <div
@@ -864,6 +928,14 @@ const PropertyAssistance = ({ existingData }) => {
         </div>
       )}
 
+      <AlertModal
+        open={validationErrors.length > 0}
+        title="Please fill the following"
+        messages={validationErrors}
+        onClose={() => setValidationErrors([])}
+        variant="warning"
+      />
+
       <form onSubmit={handleSubmit} className="p-3">
         <div className="row mb-3 justify-content-around">
           <div className="form-group col-5 p-0 m-0">
@@ -874,43 +946,26 @@ const PropertyAssistance = ({ existingData }) => {
 
               <div style={{ display: "flex", alignItems: "center" }}>
                 <div style={{ flex: "1" }}>
-                  <select
+                  <PriceInput
                     name="minPrice"
                     value={formData.minPrice || ""}
-                    onChange={handleFieldChange}
-                    className="form-control"
-                    style={{ display: "none" }} // Hide the default <select> dropdown
-                  >
-                    <option value="">Select minPrice</option>
-                    {dataList.minPrice?.map((option, index) => (
-                      <option key={index} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    className="m-0"
-                    type="button"
-                    onClick={() => toggleDropdown("minPrice")}
-                    style={{
-                      cursor: "pointer",
-                      border: "1px solid #2F747F",
-                      padding: "10px",
-                      background: "#fff",
-                      borderRadius: "5px",
-                      width: "100%",
-                      textAlign: "left",
-                      color: "#2F747F",
+                    onChange={(v) =>
+                      setFormData((prev) => ({ ...prev, minPrice: v }))
+                    }
+                    onSelectOption={() => {
+                      // Preserve previous auto-advance: minPrice -> maxPrice (focus its input).
+                      setTimeout(() => {
+                        const next = document.querySelector('[name="maxPrice"]');
+                        if (next) {
+                          next.focus();
+                          next.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                      }, 100);
                     }}
-                  >
-                    <span style={{ marginRight: "10px" }}>
-                      <img src={minprice} alt="" />
-                    </span>
-                    {formData.minPrice || "Select minPrice"}
-                  </button>
-
-                  {renderDropdown("minPrice")}
+                    options={dataList.minPrice || []}
+                    placeholder="Select or type minPrice"
+                    iconLeft={<img src={minprice} alt="" />}
+                  />
                 </div>
               </div>
             </label>
@@ -924,43 +979,26 @@ const PropertyAssistance = ({ existingData }) => {
 
               <div style={{ display: "flex", alignItems: "center" }}>
                 <div style={{ flex: "1" }}>
-                  <select
+                  <PriceInput
                     name="maxPrice"
                     value={formData.maxPrice || ""}
-                    onChange={handleFieldChange}
-                    className="form-control"
-                    style={{ display: "none" }} // Hide the default <select> dropdown
-                  >
-                    <option value="">Select maxPrice</option>
-                    {dataList.maxPrice?.map((option, index) => (
-                      <option key={index} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    className="m-0"
-                    type="button"
-                    onClick={() => toggleDropdown("maxPrice")}
-                    style={{
-                      cursor: "pointer",
-                      border: "1px solid #2F747F",
-                      padding: "10px",
-                      background: "#fff",
-                      borderRadius: "5px",
-                      width: "100%",
-                      textAlign: "left",
-                      color: "#2F747F",
+                    onChange={(v) =>
+                      setFormData((prev) => ({ ...prev, maxPrice: v }))
+                    }
+                    onSelectOption={() => {
+                      // Preserve previous auto-advance: maxPrice -> altPhoneNumber (a non-dropdown field).
+                      setTimeout(() => {
+                        const next = document.querySelector('[name="altPhoneNumber"]');
+                        if (next) {
+                          next.focus();
+                          next.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                      }, 150);
                     }}
-                  >
-                    <span style={{ marginRight: "10px" }}>
-                      {fieldIcons.maxPrice || <FaHome />}
-                    </span>
-                    {formData.maxPrice || "Select maxPrice"}
-                  </button>
-
-                  {renderDropdown("maxPrice")}
+                    options={dataList.maxPrice || []}
+                    placeholder="Select or type maxPrice"
+                    iconLeft={fieldIcons.maxPrice || <FaHome />}
+                  />
                 </div>
               </div>
             </label>
@@ -968,7 +1006,9 @@ const PropertyAssistance = ({ existingData }) => {
         </div>
 
         <div className="col-12 mb-3">
-          <label style={{ fontWeight: 600 }}>PhoneNumber</label>
+          <label style={{ fontWeight: 600 }}>
+            PhoneNumber <span style={{ color: "red" }}>*</span>
+          </label>
           <div
             className="input-card p-0 rounded-1"
             style={{
@@ -1650,57 +1690,18 @@ const PropertyAssistance = ({ existingData }) => {
           )}
         </div>
 
-        <div className="col-12 mb-3" style={{ position: "relative" }}>
-          <label style={{ fontWeight: 600 }}>Area</label>
-          <div
-            className="input-card p-0 rounded-1"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              border: "1px solid #2F747F",
-              background: "#fff",
+        <div className="col-12" style={{ position: "relative" }}>
+          <AreaPincodeFields
+            area={formData.area}
+            pincode={formData.pincode}
+            onAreaChange={(v) => {
+              setFormData((prev) => ({ ...prev, area: v }));
+              // Keep the existing backend-search suggestions feeding the merged dropdown.
+              fetchAreaSuggestions(v);
             }}
-          >
-            <FaCity style={{ color: "#2F747F", marginLeft: "10px" }} />
-            <input
-              className="m-0"
-              type="text"
-              name="area"
-              value={formData.area}
-              onChange={handleInputChanges}
-              placeholder="Enter Area"
-              style={{
-                flex: "1",
-                padding: "8px",
-                fontSize: "14px",
-                border: "none",
-                outline: "none",
-              }}
-            />
-          </div>
-          {areaSuggestions.length > 0 && (
-            <ul style={suggestionListStyle}>
-              {areaSuggestions.map((area, index) => (
-                <li
-                  key={index}
-                  style={{
-                    ...suggestionItemStyle,
-                    ...(hoveredAreaIndex === index
-                      ? suggestionItemHoverStyle
-                      : {}),
-                  }}
-                  onMouseEnter={() => setHoveredAreaIndex(index)}
-                  onMouseLeave={() => setHoveredAreaIndex(null)}
-                  onClick={() => {
-                    setFormData({ ...formData, area });
-                    setAreaSuggestions([]);
-                  }}
-                >
-                  {area}
-                </li>
-              ))}
-            </ul>
-          )}
+            onPincodeChange={(v) => setFormData((prev) => ({ ...prev, pincode: v }))}
+            extraAreaSuggestions={areaSuggestions}
+          />
         </div>
 
         <div className="col-12 mb-3">

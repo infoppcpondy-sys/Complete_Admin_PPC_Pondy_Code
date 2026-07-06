@@ -4,12 +4,18 @@ import moment from "moment";
 import { FaFlag, FaBan, FaTrash, FaUndo, FaCheck } from "react-icons/fa";
 import { useSelector } from "react-redux";
 import { Table, Modal, Button, Badge } from "react-bootstrap";
+import PhoneCell from "./components/PhoneCell";
+import FollowupQuickModal from "./components/FollowupQuickModal";
+
+// Remark values that map to a follow-up bucket (double-click → quick modal).
+const FOLLOWUP_REMARKS = ["seller", "buyer", "visitor", "ring"];
 
 // Constants & Helpers
 const remarksMap = {
   visitor: "Visitor",
   seller: "Owner",
   buyer: "Tenant",
+  ring: "Ring",
 };
 
 const getDisplayRemarks = (r) => remarksMap[r] || r || "N/A";
@@ -44,6 +50,9 @@ const LoginReportTable = () => {
   const [loading, setLoading] = useState(false);
   const [updatingPhones, setUpdatingPhones] = useState(new Set());
   const [allowedRoles, setAllowedRoles] = useState([]);
+  // Quick follow-up modal (opened by double-clicking a phone number).
+  const [followupTarget, setFollowupTarget] = useState(null); // { phone, remark }
+  const [showRemarkWarning, setShowRemarkWarning] = useState(false);
 
   const reduxAdminName = useSelector((state) => state.admin?.name);
   const reduxAdminRole = useSelector((state) => state.admin?.role);
@@ -273,6 +282,19 @@ const LoginReportTable = () => {
     [adminName, updateUser, setPhoneUpdating]
   );
 
+  // ─── Quick follow-up (double-click phone) ─────────────────────────────────
+  // Double-clicking a phone opens the quick create-follow-up modal. Which
+  // bucket it files into is decided by the row's Remark Status. A row with no
+  // remark set can't be filed anywhere, so we warn instead.
+  const handlePhoneDoubleClick = useCallback((user) => {
+    if (!user?.phone) return;
+    if (FOLLOWUP_REMARKS.includes(user.remarks)) {
+      setFollowupTarget({ phone: user.phone, remark: user.remarks });
+    } else {
+      setShowRemarkWarning(true);
+    }
+  }, []);
+
   // ─── Print ────────────────────────────────────────────────────────────────
   const handlePrint = () => {
     const printContent = tableRef.current.innerHTML;
@@ -421,6 +443,14 @@ const LoginReportTable = () => {
   const showConfirmation = (user, action) => {
     setSelectedUser(user);
     setActionType(action);
+    // ban / delete / report require a reason — the Action Input modal further
+    // down already renders for these actions and has its own submit button.
+    // Showing the simple Confirm modal too caused them to stack and the Confirm
+    // button silently no-op'd because inputValue was empty.
+    if (["ban", "delete", "report"].includes(action)) {
+      setInputValue("");
+      return;
+    }
     setConfirmAction(action);
     setShowConfirmModal(true);
   };
@@ -581,6 +611,7 @@ const LoginReportTable = () => {
             <option value="seller">Seller</option>
             <option value="buyer">Buyer</option>
             <option value="visitor">Visitor</option>
+            <option value="ring">Ring</option>
           </select>
         </div>
 
@@ -686,6 +717,7 @@ const LoginReportTable = () => {
                 <option value="seller">Seller</option>
                 <option value="buyer">Buyer</option>
                 <option value="visitor">Visitor</option>
+                <option value="ring">Ring</option>
               </select>
             ) : (
               <input
@@ -725,14 +757,14 @@ const LoginReportTable = () => {
               <th className="border px-4 py-2">OTP</th>
               <th className="border px-4 py-2">Login Date</th>
               <th className="border px-4 py-2">OTP Status</th>
-              <th className="border px-4 py-2">Banned Reason</th>
-              <th className="border px-4 py-2">Deleted Reason</th>
-              <th className="border px-4 py-2">Banned By / Un Banned By</th>
-              <th className="border px-4 py-2">Deleted By / Un Deleted By</th>
               <th className="border px-4 py-2">Remark</th>
               <th className="border px-4 py-2">Remark Status</th>
               <th className="border px-4 py-2">Conversion</th>
               <th className="border px-4 py-2">Conversion Status</th>
+              <th className="border px-4 py-2">Banned Reason</th>
+              <th className="border px-4 py-2">Deleted Reason</th>
+              <th className="border px-4 py-2">Banned By / Un Banned By</th>
+              <th className="border px-4 py-2">Deleted By / Un Deleted By</th>
               <th className="border px-4 py-2">Actions</th>
             </tr>
           </thead>
@@ -740,53 +772,19 @@ const LoginReportTable = () => {
             {filteredUsers.map((item, index) => (
               <tr key={item._id}>
                 <td className="border px-4 py-2">{index + 1}</td>
-                <td className="border px-4 py-2">{item.phone}</td>
+                <td className="border px-4 py-2">
+                  <PhoneCell
+                    phone={item.phone}
+                    type="any"
+                    onDoubleClick={() => handlePhoneDoubleClick(item)}
+                    title="Double-click to add a follow-up (by Remark Status)"
+                  />
+                </td>
                 <td className="border px-4 py-2">{item.otp || "N/A"}</td>
                 <td className="border px-4 py-2">
                   {moment(item.loginDate).format("DD-MM-YYYY HH:mm")}
                 </td>
                 <td className="border px-4 py-2">{item.otpStatus}</td>
-
-                <td className="border px-4 py-2">{item.bannedReason || "N/A"}</td>
-                <td className="border px-4 py-2">{item.deleteReason || "N/A"}</td>
-
-                {/* Banned By / UnBanned By */}
-                <td className="border px-4 py-2">
-                  <div>
-                    {item.bannedBy ? (
-                      <div>
-                        <strong>{item.bannedBy}</strong>{" "}
-                        ({moment(item.bannedDate).format("DD-MM-YYYY")})
-                      </div>
-                    ) : null}
-                    {item.unBannedBy ? (
-                      <div style={{ fontSize: "0.9em", color: "#666", marginTop: "4px" }}>
-                        UnBanned By: {item.unBannedBy}{" "}
-                        ({moment(item.unBannedDate).format("DD-MM-YYYY")})
-                      </div>
-                    ) : null}
-                    {!item.bannedBy && !item.unBannedBy && "N/A"}
-                  </div>
-                </td>
-
-                {/* Deleted By / UnDeleted By */}
-                <td className="border px-4 py-2">
-                  <div>
-                    {item.deletedBy ? (
-                      <div>
-                        <strong>{item.deletedBy}</strong>{" "}
-                        ({moment(item.deletedDate).format("DD-MM-YYYY")})
-                      </div>
-                    ) : null}
-                    {item.unDeletedBy ? (
-                      <div style={{ fontSize: "0.9em", color: "#666", marginTop: "4px" }}>
-                        UnDeleted By: {item.unDeletedBy}{" "}
-                        ({moment(item.unDeletedDate).format("DD-MM-YYYY")})
-                      </div>
-                    ) : null}
-                    {!item.deletedBy && !item.unDeletedBy && "N/A"}
-                  </div>
-                </td>
 
                 {/* Remark Dropdown */}
                 <td className="border px-4 py-2 text-center">
@@ -800,6 +798,7 @@ const LoginReportTable = () => {
                     <option value="seller">Seller</option>
                     <option value="buyer">Buyer</option>
                     <option value="visitor">Visitor</option>
+                    <option value="ring">Ring</option>
                   </select>
                 </td>
 
@@ -830,6 +829,17 @@ const LoginReportTable = () => {
                   {item.remarks === "visitor" && (
                     <div>
                       <span className="badge bg-warning d-block mb-1">Visitor</span>
+                      {item.updatedBy && (
+                        <small className="text-muted d-block">
+                          {item.updatedBy}
+                          {item.updateDate ? ` (${moment(item.updateDate).format("DD-MM-YYYY")})` : ""}
+                        </small>
+                      )}
+                    </div>
+                  )}
+                  {item.remarks === "ring" && (
+                    <div>
+                      <span className="badge bg-success d-block mb-1">Ring</span>
                       {item.updatedBy && (
                         <small className="text-muted d-block">
                           {item.updatedBy}
@@ -886,6 +896,47 @@ const LoginReportTable = () => {
                   {(!item.conversionStatus || item.conversionStatus === "pending") && (
                     <span className="badge bg-secondary">Pending</span>
                   )}
+                </td>
+
+                <td className="border px-4 py-2">{item.bannedReason || "N/A"}</td>
+                <td className="border px-4 py-2">{item.deleteReason || "N/A"}</td>
+
+                {/* Banned By / UnBanned By */}
+                <td className="border px-4 py-2">
+                  <div>
+                    {item.bannedBy ? (
+                      <div>
+                        <strong>{item.bannedBy}</strong>
+                        {item.bannedDate ? ` (${moment(item.bannedDate).format("DD-MM-YYYY")})` : ""}
+                      </div>
+                    ) : null}
+                    {item.unBannedBy ? (
+                      <div style={{ fontSize: "0.9em", color: "#666", marginTop: "4px" }}>
+                        UnBanned By: {item.unBannedBy}
+                        {item.unBannedDate ? ` (${moment(item.unBannedDate).format("DD-MM-YYYY")})` : ""}
+                      </div>
+                    ) : null}
+                    {!item.bannedBy && !item.unBannedBy && "N/A"}
+                  </div>
+                </td>
+
+                {/* Deleted By / UnDeleted By */}
+                <td className="border px-4 py-2">
+                  <div>
+                    {item.deletedBy ? (
+                      <div>
+                        <strong>{item.deletedBy}</strong>
+                        {item.deletedDate ? ` (${moment(item.deletedDate).format("DD-MM-YYYY")})` : ""}
+                      </div>
+                    ) : null}
+                    {item.unDeletedBy ? (
+                      <div style={{ fontSize: "0.9em", color: "#666", marginTop: "4px" }}>
+                        UnDeleted By: {item.unDeletedBy}
+                        {item.unDeletedDate ? ` (${moment(item.unDeletedDate).format("DD-MM-YYYY")})` : ""}
+                      </div>
+                    ) : null}
+                    {!item.deletedBy && !item.unDeletedBy && "N/A"}
+                  </div>
                 </td>
 
                 {/* Actions */}
@@ -945,6 +996,32 @@ const LoginReportTable = () => {
           </tbody>
         </Table>
       </div>
+
+      {/* ─── Quick Follow-up Modal (double-click phone) ────────────────────── */}
+      {followupTarget && (
+        <FollowupQuickModal
+          phone={followupTarget.phone}
+          remark={followupTarget.remark}
+          adminName={adminName}
+          onClose={() => setFollowupTarget(null)}
+        />
+      )}
+
+      {/* ─── Remark Status Required Warning ────────────────────────────────── */}
+      <Modal show={showRemarkWarning} onHide={() => setShowRemarkWarning(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Remark Status Required</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Please set a <strong>Remark Status</strong> (Seller / Buyer / Visitor / Ring) for this
+          phone number before adding a follow-up.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => setShowRemarkWarning(false)}>
+            OK
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

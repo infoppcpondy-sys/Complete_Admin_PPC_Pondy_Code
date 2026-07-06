@@ -23,15 +23,41 @@ import { IoLogInSharp } from "react-icons/io5";
 import { MdReport, MdHelp, MdContactMail, MdBusiness, MdNotifications, MdSecurity } from "react-icons/md";
 import { FaImages, FaPhotoFilm } from "react-icons/fa6";
 import logo from "./logo.jpg";
+import useSidebarCounts from "./hooks/useSidebarCounts";
+import { getAdminBase, adminBaseLabel } from "./utils/adminBase";
 import "./App.css";
 
 // ─── Key mapping: matches ALL_FILES keys in UserRolls.jsx ───────────────────
 // Each menu item declares which permission key it needs.
 // If the user's role has that key, the item is shown; otherwise hidden.
 
+// Inline pill badge shown next to a NavLink. Renders nothing until the count
+// is known so we don't flash a "0" before the request completes.
+const CountBadge = ({ value }) => {
+  if (value === undefined || value === null) return null;
+  return (
+    <span
+      className="ms-2 px-2 rounded-pill"
+      style={{
+        background: "rgba(255,255,255,0.18)",
+        color: "#fff",
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        lineHeight: "1.4",
+        minWidth: "22px",
+        display: "inline-block",
+        textAlign: "center",
+      }}
+    >
+      {value}
+    </span>
+  );
+};
+
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [openSection, setOpenSection] = useState(null);
   const [allowedFiles, setAllowedFiles] = useState(null); // null = loading, [] = no permissions fetched yet
+  const { counts } = useSidebarCounts();
 
   const reduxAdminRole = useSelector((state) => state.admin.role);
   const adminRole = reduxAdminRole || localStorage.getItem("adminRole");
@@ -121,6 +147,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           PPC
         </h1>
       </div>
+      {/* Active city scope (ALL/PY/CH) chosen at login. */}
+      <div
+        className="text-center mb-1"
+        style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6c757d" }}
+      >
+        📍 {adminBaseLabel(getAdminBase())}
+      </div>
       <hr />
       <nav>
         <ul>
@@ -173,7 +206,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           )}
 
           {/* ── REPORT ── */}
-          {sectionVisible(["Login Report", "Login Users Datas", "Users Log", "Login Separate User", "Admin Report"]) && (
+          {sectionVisible(["Login Report", "Login Users Datas", "Users Log", "Login Separate User", "Admin Report", "PPC Staff Report", "Download History"]) && (
             <>
               <li className="p-3 mt-2 text-white" onClick={() => toggleSection("Report")}
                 style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
@@ -212,6 +245,20 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   <li className="p-0 mt-2">
                     <NavLink to="/dashboard/adminreport" className={({ isActive }) => isActive ? "active-link rounded" : ""}>
                       <FaSignInAlt size={20} /> Admin Report
+                    </NavLink>
+                  </li>
+                )}
+                {can("PPC Staff Report") && (
+                  <li className="p-0 mt-2">
+                    <NavLink to="/dashboard/ppc-staff-report" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}>
+                      <FaSignInAlt size={20} /> PPC Staff Report
+                    </NavLink>
+                  </li>
+                )}
+                {can("Download History") && (
+                  <li className="p-0 mt-2">
+                    <NavLink to="/dashboard/download-history" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}>
+                      <FaDownload size={20} /> Download History
                     </NavLink>
                   </li>
                 )}
@@ -347,7 +394,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           )}
 
           {/* ── BUYER ASSISTANT ── */}
-          {sectionVisible(["Add Buyer Assistance", "Get Buyer Assistances", "Buyer Active Assistant", "Pending Assistant", "Buyer Assistant Viewed", "Expired Assistant", "All Buyer Bills", "BaFree Bills", "BaPaid Bill"]) && (
+          {sectionVisible(["Add Buyer Assistance", "Get Buyer Assistances", "Buyer Active Assistant", "Pending Assistant", "Buyer Assistant Viewed", "Expired Assistant", "Removed Buyer Assistant", "All Buyer Bills", "BaFree Bills", "BaPaid Bill"]) && (
             <>
               <li className="p-3 mt-2 text-white" onClick={() => toggleSection("BuyerAssistant")}
                 style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
@@ -358,19 +405,22 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   <li className="p-0 mt-2"><NavLink to="/dashboard/add-buyer-assistance" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Add Buyers Assistance</NavLink></li>
                 )}
                 {can("Get Buyer Assistances") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/get-buyer-assistance" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Get Buyers Assistance</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/get-buyer-assistance" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Manage All Buyer Assistance</NavLink></li>
                 )}
                 {can("Buyer Active Assistant") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/active-buyer-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Buyer Active Assistant</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/active-buyer-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Approved - Buyer Assistance<CountBadge value={counts["Buyer Active Assistant"]} /></NavLink></li>
                 )}
                 {can("Pending Assistant") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/pending-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Pending Assistant</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/pending-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Pending - Buyer Assistance<CountBadge value={counts["Pending Assistant"]} /></NavLink></li>
                 )}
                 {can("Buyer Assistant Viewed") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/get-all-buyerlist-viewed" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Buyer Assistant Viewed User</NavLink></li>
                 )}
                 {can("Expired Assistant") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/expired-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Expired Assistant</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/expired-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Expired Assistant<CountBadge value={counts["Expired Assistant"]} /></NavLink></li>
+                )}
+                {can("Removed Buyer Assistant") && (
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/removed-buyer-assistant" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUsers /> Removed Buyer Assistant<CountBadge value={counts["Removed Buyer Assistant"]} /></NavLink></li>
                 )}
                 {can("All Buyer Bills") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/all-buyer-bills" className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileAlt /> Get All Buyer Office Bills</NavLink></li>
@@ -386,7 +436,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           )}
 
           {/* ── PPC PROPERTY ── */}
-          {sectionVisible(["Search Property", "Add Property", "Manage Property", "Approved Property", "PreApproved Property", "Pending Property", "Removed Property", "Expire Property", "Delete Properties", "Feature Property", "Paid Property", "Free Property", "Set Property Message", "Fetch All Address", "Get All Property Datas"]) && (
+          {sectionVisible(["Search Property", "Pricing Info", "Add Property", "Bulk Upload Property", "Manage Property", "Approved Property", "PreApproved Property", "Pending Property", "Removed Property", "Expire Property", "Delete Properties", "Feature Property", "Paid Property", "Free Property", "Set Property Message", "Fetch All Address", "Get All Property Datas"]) && (
             <>
               <li className="p-3 mt-2 text-white" onClick={() => toggleSection("PPCProperty")}
                 style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
@@ -396,23 +446,29 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 {can("Search Property") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/searchcar" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaSearch /> Search Property</NavLink></li>
                 )}
+                {can("Pricing Info") && (
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/pricing-info" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaMoneyBillAlt /> Pricing Info</NavLink></li>
+                )}
                 {can("Add Property") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/add-car" className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaPlusCircle /> Add Property</NavLink></li>
+                )}
+                {(can("Add Property") || can("Bulk Upload Property")) && (
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/bulk-upload-property" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Bulk Upload Property</NavLink></li>
                 )}
                 {can("Manage Property") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/property-list" className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaPlusCircle /> Manage Properties</NavLink></li>
                 )}
                 {can("Approved Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/approved-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserCheck /> Approved Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/approved-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserCheck /> Approved Property<CountBadge value={counts["Approved Property"]} /></NavLink></li>
                 )}
                 {can("PreApproved Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/preapproved-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserCheck /> PreApproved Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/preapproved-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserCheck /> PreApproved Property<CountBadge value={counts["PreApproved Property"]} /></NavLink></li>
                 )}
                 {can("Pending Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/pending-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserClock /> Pending Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/pending-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserClock /> Pending Property<CountBadge value={counts["Pending Property"]} /></NavLink></li>
                 )}
                 {can("Removed Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/removed-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaTrashAlt /> Removed Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/removed-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaTrashAlt /> Removed Property<CountBadge value={counts["Removed Property"]} /></NavLink></li>
                 )}
                 {can("Expire Property") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/expire-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaUserTimes /> Expired Property</NavLink></li>
@@ -421,13 +477,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   <li className="p-0 mt-2"><NavLink to="/dashboard/deleted-properties" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaTrashAlt /> Permanent Deleted Property</NavLink></li>
                 )}
                 {can("Feature Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/feature-property" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Featured Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/feature-property" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Featured Property<CountBadge value={counts["Feature Property"]} /></NavLink></li>
                 )}
                 {can("Paid Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/paid-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Paid Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/paid-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Paid Property<CountBadge value={counts["Paid Property"]} /></NavLink></li>
                 )}
                 {can("Free Property") && (
-                  <li className="p-0 mt-2"><NavLink to="/dashboard/free-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Free Property</NavLink></li>
+                  <li className="p-0 mt-2"><NavLink to="/dashboard/free-car" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Free Property<CountBadge value={counts["Free Property"]} /></NavLink></li>
                 )}
                 {can("Set Property Message") && (
                   <li className="p-0 mt-2"><NavLink to="/dashboard/set-property-message" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaCar /> Set Property Message</NavLink></li>
@@ -461,6 +517,25 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 {can("Upload Bride") && (<li className="p-0 mt-2"><NavLink to="/dashboard/upload-images-bride" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaImages /> Upload Bride</NavLink></li>)}
                 {can("Upload Ads Images") && (<li className="p-0 mt-2"><NavLink to="/dashboard/upload-images-ads" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaImages /> Upload Ads Images</NavLink></li>)}
                 {can("Upload Detail Ads Images") && (<li className="p-0 mt-2"><NavLink to="/dashboard/upload-images-ads-detail" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaImages /> Upload Detail Ads Images</NavLink></li>)}
+              </ul>
+            </>
+          )}
+
+          {/* ── POINTS PRICING ── */}
+          {sectionVisible(["Points Plans", "Points Users", "Points Transactions", "Points PayLater", "Points PayU", "Points Settings", "Points Refunds"]) && (
+            <>
+              <li className="p-3 mt-2 text-white" onClick={() => toggleSection("PointsPricing")}
+                style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
+                <RiHandCoinFill size={20} style={{ marginRight: "10px" }} /> Points Pricing
+              </li>
+              <ul className={openSection === "PointsPricing" ? "show" : "collapse"}>
+                {can("Points Plans") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-plans" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiTicket2Fill size={20} /> Points Plans - List</NavLink></li>)}
+                {can("Points Users") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-users" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiGroupFill size={20} /> Points Users &amp; Balance</NavLink></li>)}
+                {can("Points Transactions") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-transactions" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiFileListFill size={20} /> Points Transactions</NavLink></li>)}
+                {can("Points PayLater") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-paylater" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiNewspaperFill size={20} /> Points Pay Later Leads</NavLink></li>)}
+                {can("Points PayU") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-payu" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiBankCard2Fill size={20} /> Points PayU Records</NavLink></li>)}
+                {can("Points Refunds") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-refunds" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiExchangeFill size={20} /> Points Refund Requests</NavLink></li>)}
+                {can("Points Settings") && (<li className="p-0 mt-2"><NavLink to="/dashboard/points-settings" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><RiSettings5Fill size={20} /> Points Settings</NavLink></li>)}
               </ul>
             </>
           )}
@@ -512,6 +587,20 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 {can("Buyer Payment Failed") && (<li className="p-0 mt-2"><NavLink to="/dashboard/payment-failed-buyer" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Buyer Assistant Paid Failed</NavLink></li>)}
                 {can("Buyer Payment PayNow") && (<li className="p-0 mt-2"><NavLink to="/dashboard/payment-paynow-buyer" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Buyer Assistant Pay Now</NavLink></li>)}
                 {can("Buyer Payment PayLater") && (<li className="p-0 mt-2"><NavLink to="/dashboard/payment-paylater-buyer" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Buyer Assistant Pay Later</NavLink></li>)}
+              </ul>
+            </>
+          )}
+
+          {/* ── CUSTOMER DIRECT PAYU ── */}
+          {sectionVisible(["Customer Direct Paid", "Customer Direct Failed"]) && (
+            <>
+              <li className="p-3 mt-2 text-white" onClick={() => toggleSection("CustomerDirectPayU")}
+                style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
+                <FaFileInvoice style={{ marginRight: "10px" }} /> Customer direct PayU
+              </li>
+              <ul className={openSection === "CustomerDirectPayU" ? "show" : "collapse"}>
+                {can("Customer Direct Paid") && (<li className="p-0 mt-2"><NavLink to="/dashboard/customer-direct-paid" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Paid</NavLink></li>)}
+                {can("Customer Direct Failed") && (<li className="p-0 mt-2"><NavLink to="/dashboard/customer-direct-failed" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}><FaFileInvoice /> Failed</NavLink></li>)}
               </ul>
             </>
           )}
@@ -633,7 +722,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           )}
 
           {/* ── SETTINGS ── */}
-          {sectionVisible(["User Roles", "Limits", "Admin Views Table", "Profile"]) && (
+          {sectionVisible(["User Roles", "Admin OTP Number", "Limits", "Admin Views Table", "Profile"]) && (
             <>
               <li className="p-3 mt-2 text-white" onClick={() => toggleSection("Settings")}
                 style={{ borderRadius: "5px", background: "#8BC34A", cursor: "pointer" }}>
@@ -644,6 +733,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   <li className="p-0 mt-2">
                     <NavLink to="/dashboard/user-rolls" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}>
                       <MdSecurity size={20} /> Roles &amp; Access
+                    </NavLink>
+                  </li>
+                )}
+                {can("Admin OTP Number") && (
+                  <li className="p-0 mt-2">
+                    <NavLink to="/dashboard/otp-numbers" onClick={toggleSidebar} className={({ isActive }) => isActive ? "active-link rounded" : ""}>
+                      <FaPhone size={20} /> Admin OTP Number
                     </NavLink>
                   </li>
                 )}
